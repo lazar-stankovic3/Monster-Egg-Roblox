@@ -1,13 +1,40 @@
---// EggSystem
---// ServerScriptService
+-- ServerScriptService.Server.EggSystem
+-- Faza 4
+--
+-- Zadržava:
+-- pickup
+-- carry
+-- death drop
+-- lobby deposit
+-- Run UI
+-- 8s respawn
+-- PlayerRemoving cleanup
+--
+-- Dodaje:
+-- biome egg pools
+-- različite egg modele
+-- stabilni EggType
+-- kompletan metadata set
+-- server pickup validaciju
+-- legacy BasicEgg fallback
+
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
 
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 
--- RemoteEvent koji pali/gasi RunUI na klijentu
-local runUIEvent = ReplicatedStorage:FindFirstChild("RunUIEvent")
+--------------------------------------------------
+-- RUN UI EVENT
+--------------------------------------------------
+-- Kreiramo ga pre require-ova da RunUI ne visi
+-- čak i ako neki ModuleScript ima problem.
+
+local runUIEvent =
+	ReplicatedStorage:FindFirstChild("RunUIEvent")
 
 if not runUIEvent then
 	runUIEvent = Instance.new("RemoteEvent")
@@ -16,14 +43,78 @@ if not runUIEvent then
 end
 
 --------------------------------------------------
+-- MODULES
+--------------------------------------------------
+
+local modulesFolder =
+	ReplicatedStorage:FindFirstChild("Modules")
+
+if not modulesFolder then
+	error(
+		"[EggSystem] ReplicatedStorage.Modules ne postoji."
+	)
+end
+
+print("[EggSystem] Modules children:")
+
+for _, child in ipairs(
+	modulesFolder:GetChildren()
+	) do
+	print(
+		" -",
+		child.Name,
+		child.ClassName
+	)
+end
+
+local eggConfigModule =
+	modulesFolder:FindFirstChild("EggConfig")
+
+if not eggConfigModule then
+	error(
+		"[EggSystem] EggConfig nije pronađen u ReplicatedStorage.Modules."
+	)
+end
+
+if not eggConfigModule:IsA("ModuleScript") then
+	error(
+		"[EggSystem] EggConfig postoji, ali nije ModuleScript."
+	)
+end
+
+local eggRollerModule =
+	modulesFolder:FindFirstChild("EggRoller")
+
+if not eggRollerModule then
+	error(
+		"[EggSystem] EggRoller nije pronađen u ReplicatedStorage.Modules."
+	)
+end
+
+if not eggRollerModule:IsA("ModuleScript") then
+	error(
+		"[EggSystem] EggRoller postoji, ali nije ModuleScript."
+	)
+end
+
+local EggConfig =
+	require(eggConfigModule :: ModuleScript)
+
+local EggRoller =
+	require(eggRollerModule :: ModuleScript)
+
+--------------------------------------------------
 -- REFERENCES
 --------------------------------------------------
 
-local eggModelsFolder = ServerStorage:WaitForChild("EggModels")
-local eggTemplate = eggModelsFolder:WaitForChild("BasicEgg")
+local eggModelsFolder =
+	ServerStorage:WaitForChild("EggModels")
 
-local spawnFolder = workspace:WaitForChild("EggSpawnPoints")
-local lobbyZone = workspace:WaitForChild("LobbyDepositZone")
+local spawnFolder =
+	workspace:WaitForChild("EggSpawnPoints")
+
+local lobbyZone =
+	workspace:WaitForChild("LobbyDepositZone")
 
 --------------------------------------------------
 -- SETTINGS
@@ -34,99 +125,123 @@ local RESPAWN_TIME = 8
 local PROMPT_HOLD_TIME = 1.2
 local PROMPT_DISTANCE = 10
 
--- visina iznad glave
+-- Malo tolerancije iznad prompt distance-a.
+local SERVER_PICKUP_DISTANCE =
+	PROMPT_DISTANCE + 2
+
 local HEAD_OFFSET = 1.2
 
--- Random veličine.
--- Weight = šansa da se pojavi.
+--------------------------------------------------
+-- RANDOM
+--------------------------------------------------
 
-local EGG_SIZES = {
-	{
-		Name = "Tiny",
-		Scale = 0.7,
-		Weight = 20,
-	},
-
-	{
-		Name = "Normal",
-		Scale = 1,
-		Weight = 45,
-	},
-
-	{
-		Name = "Large",
-		Scale = 1.4,
-		Weight = 22,
-	},
-
-	{
-		Name = "Huge",
-		Scale = 1.9,
-		Weight = 10,
-	},
-
-	{
-		Name = "Titanic",
-		Scale = 2.6,
-		Weight = 3,
-	},
-}
+local randomObject = Random.new()
 
 --------------------------------------------------
 -- RUNTIME DATA
 --------------------------------------------------
 
--- [player] = egg model
+-- [Player] = egg Model
 local carriedEggs = {}
 
--- [spawnPart] = spawned egg
+-- [spawnPart] = egg Model
 local activeSpawnEggs = {}
 
+-- [egg Model] = original spawn Part
+local eggOriginSpawn = {}
+
+-- Deposit debounce
+local depositCooldown = {}
+
+-- Spawn point imena koja nisu jedinstvena
+local duplicateSpawnNames = {}
+
 --------------------------------------------------
--- RANDOM SIZE
+-- SPAWN NAME VALIDATION
 --------------------------------------------------
 
-local function rollEggSize()
-	local totalWeight = 0
+local function scanSpawnPointNames()
+	local seen = {}
 
-	for _, info in ipairs(EGG_SIZES) do
-		totalWeight += info.Weight
-	end
-
-	local roll = math.random() * totalWeight
-	local currentWeight = 0
-
-	for _, info in ipairs(EGG_SIZES) do
-		currentWeight += info.Weight
-
-		if roll <= currentWeight then
-			return info
+	for _, object in ipairs(
+		spawnFolder:GetChildren()
+		) do
+		if object:IsA("BasePart") then
+			if seen[object.Name] then
+				duplicateSpawnNames[object.Name] =
+					true
+			else
+				seen[object.Name] = object
+			end
 		end
 	end
 
-	return EGG_SIZES[2]
+	for duplicateName in pairs(
+		duplicateSpawnNames
+		) do
+		warn(
+			string.format(
+				"[EggSystem] DUPLICATE SpawnPoint name '%s'. SpawnPoint imena moraju biti jedinstvena. Spawnovi sa ovim imenom će biti preskočeni.",
+				duplicateName
+			)
+		)
+	end
 end
 
 --------------------------------------------------
 -- INVENTORY
 --------------------------------------------------
 
-local function createInventory(player)
+local function getOrCreateInventory(player)
+	local existing =
+		player:FindFirstChild("EggInventory")
+
+	if existing
+		and existing:IsA("Folder") then
+
+		return existing
+	end
+
+	if existing then
+		warn(
+			string.format(
+				"[EggSystem] %s već ima EggInventory koji nije Folder.",
+				player.Name
+			)
+		)
+
+		return nil
+	end
+
 	local inventory = Instance.new("Folder")
 	inventory.Name = "EggInventory"
 	inventory.Parent = player
+
+	return inventory
 end
 
-local function addEggToInventory(player, egg)
-	local inventory = player:FindFirstChild("EggInventory")
+local function addEggToInventory(
+	player,
+	egg
+)
+	local inventory =
+		getOrCreateInventory(player)
 
 	if not inventory then
-		return
+		return false
+	end
+
+	local eggName =
+		egg:GetAttribute("EggName")
+
+	if type(eggName) ~= "string"
+		or eggName == "" then
+
+		eggName = "Egg"
 	end
 
 	local item = Instance.new("Folder")
-
-	item.Name = egg:GetAttribute("EggName") or "Egg"
+	item.Name = eggName
 
 	item:SetAttribute(
 		"UID",
@@ -136,6 +251,21 @@ local function addEggToInventory(player, egg)
 	item:SetAttribute(
 		"EggName",
 		egg:GetAttribute("EggName")
+	)
+
+	item:SetAttribute(
+		"EggType",
+		egg:GetAttribute("EggType")
+	)
+
+	item:SetAttribute(
+		"Biome",
+		egg:GetAttribute("Biome")
+	)
+
+	item:SetAttribute(
+		"Rarity",
+		egg:GetAttribute("Rarity")
 	)
 
 	item:SetAttribute(
@@ -151,59 +281,276 @@ local function addEggToInventory(player, egg)
 	item.Parent = inventory
 
 	print(
-		player.Name,
-		"deposited",
-		item:GetAttribute("Size"),
-		item:GetAttribute("EggName")
-	)
-end
-
---------------------------------------------------
--- MODEL SETUP
---------------------------------------------------
-
-local function prepareEggModel(egg)
-	if not egg.PrimaryPart then
-		warn(
-			egg.Name ..
-				" nema PrimaryPart!"
+		string.format(
+			"[EggSystem] %s deposited %s %s | UID=%s | Biome=%s | Rarity=%s",
+			player.Name,
+			tostring(
+				item:GetAttribute("Size")
+			),
+			tostring(
+				item:GetAttribute("EggName")
+			),
+			tostring(
+				item:GetAttribute("UID")
+			),
+			tostring(
+				item:GetAttribute("Biome")
+			),
+			tostring(
+				item:GetAttribute("Rarity")
+			)
 		)
-
-		return false
-	end
-
-	for _, object in ipairs(egg:GetDescendants()) do
-
-		if object:IsA("BasePart") then
-
-			object.Anchored = true
-
-			object.CanCollide = true
-			object.CanTouch = true
-			object.CanQuery = true
-
-		end
-
-	end
+	)
 
 	return true
 end
 
 --------------------------------------------------
--- CREATE PROMPT
+-- MODEL PHYSICS
 --------------------------------------------------
+
+local function prepareEggModel(egg)
+	if not egg:IsA("Model") then
+		warn(
+			"[EggSystem] Egg template nije Model."
+		)
+
+		return false
+	end
+
+	if not egg.PrimaryPart then
+		warn(
+			string.format(
+				"[EggSystem] Egg model '%s' nema PrimaryPart.",
+				egg.Name
+			)
+		)
+
+		return false
+	end
+
+	local foundPart = false
+
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart") then
+			foundPart = true
+
+			object.Anchored = true
+			object.CanCollide = true
+			object.CanTouch = true
+			object.CanQuery = true
+			object.Massless = false
+		end
+	end
+
+	if not foundPart then
+		warn(
+			string.format(
+				"[EggSystem] Egg model '%s' nema nijedan BasePart.",
+				egg.Name
+			)
+		)
+
+		return false
+	end
+
+	return true
+end
+
+local function setEggPhysicsForCarry(egg)
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart") then
+			object.Anchored = false
+			object.CanCollide = false
+			object.CanTouch = false
+			object.CanQuery = true
+			object.Massless = true
+		end
+	end
+end
+
+local function setEggPhysicsForDrop(egg)
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart") then
+			object.Anchored = false
+			object.CanCollide = true
+			object.CanTouch = true
+			object.CanQuery = true
+			object.Massless = false
+		end
+	end
+end
+
+--------------------------------------------------
+-- INTERNAL WELDS
+--------------------------------------------------
+
+local function weldEggModel(egg)
+	local primary = egg.PrimaryPart
+
+	if not primary then
+		return
+	end
+
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart")
+			and object ~= primary then
+
+			local existing =
+				object:FindFirstChild(
+					"EggInternalWeld"
+				)
+
+			if not existing then
+				local weld =
+					Instance.new(
+						"WeldConstraint"
+					)
+
+				weld.Name =
+					"EggInternalWeld"
+
+				weld.Part0 = primary
+				weld.Part1 = object
+
+				weld.Parent = object
+			end
+		end
+	end
+end
+
+--------------------------------------------------
+-- POSITION ON SPAWN
+--------------------------------------------------
+
+local function positionEggOnSpawn(
+	egg,
+	spawnPart
+)
+	local baseCFrame =
+		CFrame.new(
+			spawnPart.Position
+		)
+		* CFrame.Angles(
+			0,
+			math.rad(
+				spawnPart.Orientation.Y
+			),
+			0
+		)
+
+	egg:PivotTo(baseCFrame)
+
+	local boxCFrame, boxSize =
+		egg:GetBoundingBox()
+
+	local eggBottomY =
+		boxCFrame.Position.Y
+	- (boxSize.Y / 2)
+
+	local spawnTopY =
+		spawnPart.Position.Y
+		+ (spawnPart.Size.Y / 2)
+
+	local yCorrection =
+		spawnTopY - eggBottomY
+
+	egg:PivotTo(
+		egg:GetPivot()
+			+ Vector3.new(
+				0,
+				yCorrection,
+				0
+			)
+	)
+end
+
+--------------------------------------------------
+-- POSITION ABOVE HEAD
+--------------------------------------------------
+
+local function positionEggAboveHead(
+	egg,
+	head
+)
+	egg:PivotTo(
+		CFrame.new(head.Position)
+			* head.CFrame.Rotation
+	)
+
+	local boxCFrame, boxSize =
+		egg:GetBoundingBox()
+
+	local eggBottomY =
+		boxCFrame.Position.Y
+	- (boxSize.Y / 2)
+
+	local desiredBottomY =
+		head.Position.Y
+		+ (head.Size.Y / 2)
+		+ HEAD_OFFSET
+
+	local yCorrection =
+		desiredBottomY - eggBottomY
+
+	egg:PivotTo(
+		egg:GetPivot()
+			+ Vector3.new(
+				0,
+				yCorrection,
+				0
+			)
+	)
+end
+
+--------------------------------------------------
+-- PROMPT
+--------------------------------------------------
+
+local pickupEgg
 
 local function createPrompt(egg)
 	local root = egg.PrimaryPart
 
-	local prompt = Instance.new("ProximityPrompt")
+	if not root then
+		return nil
+	end
+
+	local existing =
+		root:FindFirstChild("PickupPrompt")
+
+	if existing then
+		existing:Destroy()
+	end
+
+	local prompt =
+		Instance.new("ProximityPrompt")
 
 	prompt.Name = "PickupPrompt"
-
 	prompt.ActionText = "Pick Up"
+
+	local sizeName =
+		egg:GetAttribute("Size")
+		or "Unknown"
+
+	local eggName =
+		egg:GetAttribute("EggName")
+		or "Egg"
+
 	prompt.ObjectText =
-		egg:GetAttribute("Size") ..
-		" Egg"
+		string.format(
+			"%s %s",
+			tostring(sizeName),
+			tostring(eggName)
+		)
 
 	prompt.KeyboardKeyCode =
 		Enum.KeyCode.E
@@ -218,107 +565,127 @@ local function createPrompt(egg)
 
 	prompt.Parent = root
 
+	prompt.Triggered:Connect(
+		function(player)
+			pickupEgg(
+				player,
+				egg
+			)
+		end
+	)
+
 	return prompt
 end
 
 --------------------------------------------------
--- CARRY SETUP
+-- PICKUP VALIDATION
 --------------------------------------------------
 
-local function setEggPhysicsForCarry(egg)
+local function validatePickup(
+	player,
+	egg
+)
+	if not player
+		or not player:IsA("Player") then
 
-	for _, object in ipairs(egg:GetDescendants()) do
-
-		if object:IsA("BasePart") then
-
-			object.Anchored = false
-			object.CanCollide = false
-			object.CanTouch = false
-			object.Massless = true
-
-		end
-
+		return false
 	end
 
-end
-
-local function weldEggModel(egg)
-
-	local primary = egg.PrimaryPart
-
-	for _, object in ipairs(egg:GetDescendants()) do
-
-		if object:IsA("BasePart")
-			and object ~= primary then
-
-			local existing =
-				object:FindFirstChild(
-					"EggInternalWeld"
-				)
-
-			if not existing then
-
-				local weld =
-					Instance.new(
-						"WeldConstraint"
-					)
-
-				weld.Name =
-					"EggInternalWeld"
-
-				weld.Part0 = primary
-				weld.Part1 = object
-
-				weld.Parent = object
-
-			end
-		end
-	end
-end
-
---------------------------------------------------
--- PICKUP EGG
---------------------------------------------------
-
-local function pickupEgg(player, egg)
-
-	-- već nosi nešto
 	if carriedEggs[player] then
-		return
+		return false
 	end
 
 	if not egg
 		or not egg.Parent
 		or not egg.PrimaryPart then
-		return
+
+		return false
 	end
 
-	if egg:GetAttribute("Carried") then
-		return
+	if egg:GetAttribute("Carried") == true then
+		return false
 	end
 
-	local character = player.Character
+	local character =
+		player.Character
 
 	if not character then
-		return
+		return false
 	end
 
-	local head =
-		character:FindFirstChild("Head")
-
 	local humanoid =
-		character:FindFirstChildOfClass(
+		character:
+		FindFirstChildOfClass(
 			"Humanoid"
 		)
 
-	if not head
-		or not humanoid
-		or humanoid.Health <= 0 then
+	local root =
+		character:
+		FindFirstChild(
+			"HumanoidRootPart"
+		)
+
+	local head =
+		character:
+		FindFirstChild(
+			"Head"
+		)
+
+	if not humanoid
+		or humanoid.Health <= 0
+		or not root
+		or not head then
+
+		return false
+	end
+
+	local distance =
+		(
+			root.Position
+			- egg.PrimaryPart.Position
+		).Magnitude
+
+	if distance > SERVER_PICKUP_DISTANCE then
+		warn(
+			string.format(
+				"[EggSystem] Pickup odbijen za %s: distance %.2f > %.2f",
+				player.Name,
+				distance,
+				SERVER_PICKUP_DISTANCE
+			)
+		)
+
+		return false
+	end
+
+	return true,
+		character,
+		humanoid,
+		root,
+		head
+end
+
+--------------------------------------------------
+-- PICKUP
+--------------------------------------------------
+
+pickupEgg = function(player, egg)
+	local valid,
+		_character,
+		_humanoid,
+		_root,
+		head =
+		validatePickup(
+			player,
+			egg
+		)
+
+	if not valid then
 		return
 	end
 
 	--------------------------------------------------
-	-- LOCK OWNERSHIP
+	-- LOCK
 	--------------------------------------------------
 
 	egg:SetAttribute(
@@ -333,15 +700,13 @@ local function pickupEgg(player, egg)
 
 	carriedEggs[player] = egg
 
-	-- UPALI RUN UI
-	runUIEvent:FireClient(player, true)
-
 	--------------------------------------------------
 	-- REMOVE PROMPT
 	--------------------------------------------------
 
 	local prompt =
-		egg.PrimaryPart:FindFirstChild(
+		egg.PrimaryPart:
+		FindFirstChild(
 			"PickupPrompt"
 		)
 
@@ -350,63 +715,49 @@ local function pickupEgg(player, egg)
 	end
 
 	--------------------------------------------------
-	-- PHYSICS
+	-- CARRY
 	--------------------------------------------------
 
 	weldEggModel(egg)
-
 	setEggPhysicsForCarry(egg)
 
-	--------------------------------------------------
-	-- FIND EGG HEIGHT
-	--------------------------------------------------
-
-	local _, boundingSize =
-		egg:GetBoundingBox()
-
-	local yOffset =
-		HEAD_OFFSET +
-		(boundingSize.Y / 2)
-
-	--------------------------------------------------
-	-- POSITION ABOVE HEAD
-	--------------------------------------------------
-
-	egg:PivotTo(
-		head.CFrame *
-			CFrame.new(
-				0,
-				yOffset,
-				0
-			)
+	positionEggAboveHead(
+		egg,
+		head
 	)
 
-	--------------------------------------------------
-	-- WELD TO HEAD
-	--------------------------------------------------
+	local carryWeld =
+		Instance.new("WeldConstraint")
 
-	local weld =
-		Instance.new(
-			"WeldConstraint"
-		)
+	carryWeld.Name = "CarryWeld"
+	carryWeld.Part0 = head
+	carryWeld.Part1 = egg.PrimaryPart
+	carryWeld.Parent = egg.PrimaryPart
 
-	weld.Name = "CarryWeld"
-
-	weld.Part0 = head
-	weld.Part1 = egg.PrimaryPart
-
-	weld.Parent = egg.PrimaryPart
+	runUIEvent:FireClient(
+		player,
+		true
+	)
 
 	print(
-		player.Name,
-		"picked up",
-		egg:GetAttribute("Size"),
-		"egg"
+		string.format(
+			"[EggSystem] %s picked up %s %s | UID=%s",
+			player.Name,
+			tostring(
+				egg:GetAttribute("Size")
+			),
+			tostring(
+				egg:GetAttribute("EggName")
+			),
+			tostring(
+				egg:GetAttribute("UID")
+			)
+		)
 	)
 end
 
 --------------------------------------------------
--- DROP EGG
+-- DROP
 --------------------------------------------------
 
 local function dropEgg(player)
@@ -418,8 +769,24 @@ local function dropEgg(player)
 
 		carriedEggs[player] = nil
 
-		-- UGASI RUN UI
-		runUIEvent:FireClient(player, false)
+		runUIEvent:FireClient(
+			player,
+			false
+		)
+
+		return
+	end
+
+	local primary =
+		egg.PrimaryPart
+
+	if not primary then
+		carriedEggs[player] = nil
+
+		runUIEvent:FireClient(
+			player,
+			false
+		)
 
 		return
 	end
@@ -427,14 +794,15 @@ local function dropEgg(player)
 	local character =
 		player.Character
 
-	local root =
-		character and
-		character:FindFirstChild(
+	local characterRoot =
+		character
+		and character:
+		FindFirstChild(
 			"HumanoidRootPart"
 		)
 
 	local carryWeld =
-		egg.PrimaryPart:
+		primary:
 		FindFirstChild(
 			"CarryWeld"
 		)
@@ -443,10 +811,6 @@ local function dropEgg(player)
 		carryWeld:Destroy()
 	end
 
-	--------------------------------------------------
-	-- RESET
-	--------------------------------------------------
-
 	egg:SetAttribute(
 		"Carried",
 		false
@@ -454,82 +818,121 @@ local function dropEgg(player)
 
 	egg:SetAttribute(
 		"CarrierUserId",
-		nil
+		0
 	)
 
 	carriedEggs[player] = nil
 
-	-- UGASI RUN UI
-	runUIEvent:FireClient(player, false)
+	runUIEvent:FireClient(
+		player,
+		false
+	)
 
-	--------------------------------------------------
-	-- WORLD PHYSICS
-	--------------------------------------------------
+	setEggPhysicsForDrop(egg)
 
-	for _, object in ipairs(
-		egg:GetDescendants()
-		) do
-
-		if object:IsA("BasePart") then
-
-			object.Anchored = false
-			object.CanCollide = true
-			object.CanTouch = true
-			object.Massless = false
-
-		end
-	end
-
-	if root then
-
+	if characterRoot then
 		egg:PivotTo(
-			root.CFrame *
-				CFrame.new(
+			characterRoot.CFrame
+				* CFrame.new(
 					0,
 					2,
 					-4
 				)
 		)
-
 	end
 
-	--------------------------------------------------
-	-- PICKUP AGAIN
-	--------------------------------------------------
+	createPrompt(egg)
 
-	local prompt =
-		createPrompt(egg)
-
-	prompt.Triggered:Connect(
-		function(newPlayer)
-
-			pickupEgg(
-				newPlayer,
-				egg
+	print(
+		string.format(
+			"[EggSystem] %s dropped %s | UID=%s",
+			player.Name,
+			tostring(
+				egg:GetAttribute("EggName")
+			),
+			tostring(
+				egg:GetAttribute("UID")
 			)
-
-		end
+		)
 	)
 end
 
 --------------------------------------------------
--- SPAWN EGG
+-- RESOLVE EGG DEFINITION
 --------------------------------------------------
 
-local function spawnEgg(spawnPart)
+local function getEggDefinitionForSpawn(
+	spawnPart
+)
+	local biomeAttribute =
+		spawnPart:GetAttribute("Biome")
 
-	if activeSpawnEggs[spawnPart]
-		and activeSpawnEggs[spawnPart].Parent then
+	--------------------------------------------------
+	-- LEGACY
+	--------------------------------------------------
+
+	if biomeAttribute == nil then
 		return
+			EggConfig.LegacyBasicEgg,
+			EggConfig.LegacyBasicEgg.Biome,
+			nil
 	end
 
-	local egg = eggTemplate:Clone()
-	egg.Name = "WorldEgg"
-
 	--------------------------------------------------
-	-- UNIQUE ID
+	-- ATTRIBUTE EXISTS BUT INVALID
 	--------------------------------------------------
 
+	if type(biomeAttribute) ~= "string"
+		or biomeAttribute == "" then
+
+		return nil,
+			nil,
+			string.format(
+				"SpawnPoint '%s' ima Biome Attribute, ali nije validan non-empty String.",
+				spawnPart.Name
+			)
+	end
+
+	local biomeKey = tostring(biomeAttribute)
+
+local definition, rollError =
+	EggRoller.RollEggForBiome(
+		biomeKey,
+		randomObject
+	)
+
+if not definition then
+	local errorMessage =
+		tostring(
+			rollError
+				or "nije moguće izabrati egg"
+		)
+
+	return nil,
+		nil,
+		string.format(
+			"SpawnPoint '%s' Biome='%s': %s",
+			tostring(spawnPart.Name),
+			biomeKey,
+			errorMessage
+		)
+end
+
+return definition,
+	biomeKey,
+	nil
+end
+--------------------------------------------------
+-- APPLY WORLD ATTRIBUTES
+--------------------------------------------------
+
+local function applyWorldAttributes(
+	egg,
+	definition,
+	biomeName,
+	sizeInfo,
+	spawnPart
+)
 	egg:SetAttribute(
 		"UID",
 		HttpService:GenerateGUID(false)
@@ -537,14 +940,23 @@ local function spawnEgg(spawnPart)
 
 	egg:SetAttribute(
 		"EggName",
-		"BasicEgg"
+		definition.EggName
 	)
 
-	--------------------------------------------------
-	-- RANDOM SIZE
-	--------------------------------------------------
+	egg:SetAttribute(
+		"EggType",
+		definition.EggType
+	)
 
-	local sizeInfo = rollEggSize()
+	egg:SetAttribute(
+		"Biome",
+		biomeName
+	)
+
+	egg:SetAttribute(
+		"Rarity",
+		definition.Rarity
+	)
 
 	egg:SetAttribute(
 		"Size",
@@ -566,89 +978,172 @@ local function spawnEgg(spawnPart)
 		false
 	)
 
+	egg:SetAttribute(
+		"CarrierUserId",
+		0
+	)
+end
+
+--------------------------------------------------
+-- SPAWN EGG
+--------------------------------------------------
+
+local function spawnEgg(spawnPart)
+	if not spawnPart
+		or not spawnPart.Parent
+		or not spawnPart:IsA("BasePart") then
+
+		return
+	end
+
+	if duplicateSpawnNames[
+		spawnPart.Name
+		] then
+
+		warn(
+			string.format(
+				"[EggSystem] Preskačem SpawnPoint '%s' jer ime nije jedinstveno.",
+				spawnPart.Name
+			)
+		)
+
+		return
+	end
+
+	local active =
+		activeSpawnEggs[spawnPart]
+
+	if active
+		and active.Parent then
+
+		return
+	end
+
 	--------------------------------------------------
-	-- SCALE
+	-- CHOOSE EGG
 	--------------------------------------------------
 
-	egg:ScaleTo(sizeInfo.Scale)
+	local definition,
+		biomeName,
+		definitionError =
+		getEggDefinitionForSpawn(
+			spawnPart
+		)
+
+	if not definition then
+		warn(
+			"[EggSystem] "
+				.. (
+					definitionError
+					or "Egg definition nije pronađen."
+				)
+				.. " Spawn preskočen."
+		)
+
+		return
+	end
 
 	--------------------------------------------------
-	-- PARENT
+	-- MODEL
 	--------------------------------------------------
+
+	local template =
+		eggModelsFolder:
+		FindFirstChild(
+			definition.ModelName
+		)
+
+	if not template
+		or not template:IsA("Model") then
+
+		warn(
+			string.format(
+				"[EggSystem] SpawnPoint '%s': model '%s' za EggType '%s' ne postoji kao Model u ServerStorage.EggModels. Spawn preskočen.",
+				spawnPart.Name,
+				tostring(
+					definition.ModelName
+				),
+				tostring(
+					definition.EggType
+				)
+			)
+		)
+
+		return
+	end
+
+	--------------------------------------------------
+	-- SIZE
+	--------------------------------------------------
+
+	local sizeInfo, sizeError =
+		EggRoller.RollSize(
+			randomObject
+		)
+
+	if not sizeInfo then
+		warn(
+			string.format(
+				"[EggSystem] SpawnPoint '%s': size roll failed: %s. Spawn preskočen.",
+				spawnPart.Name,
+				tostring(sizeError)
+			)
+		)
+
+		return
+	end
+
+	--------------------------------------------------
+	-- CLONE
+	--------------------------------------------------
+
+	local egg =
+		template:Clone()
+
+	egg.Name = "WorldEgg"
+
+	applyWorldAttributes(
+		egg,
+		definition,
+		biomeName,
+		sizeInfo,
+		spawnPart
+	)
+
+	egg:ScaleTo(
+		sizeInfo.Scale
+	)
 
 	egg.Parent = workspace
-
-	--------------------------------------------------
-	-- PREPARE MODEL
-	--------------------------------------------------
 
 	if not prepareEggModel(egg) then
 		egg:Destroy()
 		return
 	end
 
-	--------------------------------------------------
-	-- POSITION
-	-- PrimaryPart is at the bottom of the egg
-	--------------------------------------------------
-
-	local root = egg.PrimaryPart
-
-	if not root then
-		warn("Egg nema PrimaryPart!")
-		egg:Destroy()
-		return
-	end
-
-	-- top surface of spawn part
-	local spawnTopY =
-		spawnPart.Position.Y
-		+ (spawnPart.Size.Y / 2)
-
-	-- Since PrimaryPart is on the bottom,
-	-- place it directly on top of spawn point.
-	local targetCFrame = CFrame.new(
-		spawnPart.Position.X,
-		spawnTopY,
-		spawnPart.Position.Z
+	positionEggOnSpawn(
+		egg,
+		spawnPart
 	)
 
-	-- Preserve spawn point rotation if you want
-	targetCFrame =
-		CFrame.new(
-			spawnPart.Position.X,
-			spawnTopY,
-			spawnPart.Position.Z
-		)
-		* CFrame.Angles(
-			0,
-			math.rad(spawnPart.Orientation.Y),
-			0
-		)
-
-	egg:SetPrimaryPartCFrame(targetCFrame)
-
-	--------------------------------------------------
-	-- REGISTER ACTIVE EGG
-	--------------------------------------------------
-
 	activeSpawnEggs[spawnPart] = egg
+	eggOriginSpawn[egg] = spawnPart
 
-	--------------------------------------------------
-	-- PROMPT
-	--------------------------------------------------
-
-	local prompt = createPrompt(egg)
-
-	prompt.Triggered:Connect(function(player)
-		pickupEgg(player, egg)
-	end)
+	createPrompt(egg)
 
 	print(
-		"🥚 Spawned",
-		sizeInfo.Name,
-		"egg at",
-		spawnPart.Name
+		string.format(
+			"[EggSystem] Spawned %s %s | EggType=%s | Biome=%s | Rarity=%s | SpawnPoint=%s | UID=%s",
+			sizeInfo.Name,
+			definition.EggName,
+			definition.EggType,
+			biomeName,
+			definition.Rarity,
+			spawnPart.Name,
+			tostring(
+				egg:GetAttribute("UID")
+			)
+		)
 	)
 end
 
@@ -656,9 +1151,56 @@ end
 -- RESPAWN
 --------------------------------------------------
 
-local function scheduleRespawn(
-	spawnPointName
-)
+local function scheduleRespawn(spawnPart)
+	if not spawnPart
+		or not spawnPart.Parent then
+
+		return
+	end
+
+	activeSpawnEggs[spawnPart] = nil
+
+	task.delay(
+		RESPAWN_TIME,
+		function()
+			if not spawnPart.Parent then
+				return
+			end
+
+			spawnEgg(spawnPart)
+		end
+	)
+end
+
+--------------------------------------------------
+-- ORIGIN SPAWN
+--------------------------------------------------
+
+local function getOriginSpawn(egg)
+	local runtimeSpawn =
+		eggOriginSpawn[egg]
+
+	if runtimeSpawn
+		and runtimeSpawn.Parent then
+
+		return runtimeSpawn
+	end
+
+	local spawnPointName =
+		egg:GetAttribute("SpawnPoint")
+
+	if type(spawnPointName) ~= "string"
+		or spawnPointName == "" then
+
+		return nil
+	end
+
+	if duplicateSpawnNames[
+		spawnPointName
+		] then
+
+		return nil
+	end
 
 	local spawnPart =
 		spawnFolder:
@@ -666,33 +1208,20 @@ local function scheduleRespawn(
 			spawnPointName
 		)
 
-	if not spawnPart then
-		return
+	if spawnPart
+		and spawnPart:IsA("BasePart") then
+
+		return spawnPart
 	end
 
-	activeSpawnEggs[spawnPart] =
-		nil
-
-	task.delay(
-		RESPAWN_TIME,
-		function()
-
-			spawnEgg(
-				spawnPart
-			)
-
-		end
-	)
+	return nil
 end
 
 --------------------------------------------------
--- DEPOSIT INTO INVENTORY
+-- DEPOSIT
 --------------------------------------------------
 
-local depositCooldown = {}
-
 local function depositEgg(player)
-
 	if depositCooldown[player] then
 		return
 	end
@@ -702,14 +1231,11 @@ local function depositEgg(player)
 
 	if not egg
 		or not egg.Parent then
+
 		return
 	end
 
 	depositCooldown[player] = true
-
-	--------------------------------------------------
-	-- VALIDATE
-	--------------------------------------------------
 
 	if egg:GetAttribute(
 		"CarrierUserId"
@@ -717,54 +1243,66 @@ local function depositEgg(player)
 
 		depositCooldown[player] = nil
 		return
-
 	end
 
-	local spawnPointName =
-		egg:GetAttribute(
-			"SpawnPoint"
+	if egg:GetAttribute(
+		"Carried"
+		) ~= true then
+
+		depositCooldown[player] = nil
+		return
+	end
+
+	local spawnPart =
+		getOriginSpawn(egg)
+
+	local added =
+		addEggToInventory(
+			player,
+			egg
 		)
 
-	--------------------------------------------------
-	-- INVENTORY
-	--------------------------------------------------
+	if not added then
+		depositCooldown[player] = nil
 
-	addEggToInventory(
+		warn(
+			string.format(
+				"[EggSystem] Deposit za %s nije uspeo; world egg nije uništen.",
+				player.Name
+			)
+		)
+
+		return
+	end
+
+	carriedEggs[player] = nil
+
+	runUIEvent:FireClient(
 		player,
-		egg
+		false
 	)
 
-	carriedEggs[player] =
-		nil
-
-	-- UGASI RUN UI
-	runUIEvent:FireClient(player, false)
-
-	--------------------------------------------------
-	-- DESTROY WORLD EGG
-	--------------------------------------------------
+	eggOriginSpawn[egg] = nil
 
 	egg:Destroy()
 
-	--------------------------------------------------
-	-- NEW EGG LATER
-	--------------------------------------------------
-
-	if spawnPointName then
-
+	if spawnPart then
 		scheduleRespawn(
-			spawnPointName
+			spawnPart
 		)
-
+	else
+		warn(
+			string.format(
+				"[EggSystem] Deposit od %s uspeo, ali original SpawnPoint nije pronađen. Respawn nije zakazan.",
+				player.Name
+			)
+		)
 	end
 
 	task.delay(
 		0.5,
 		function()
-
-			depositCooldown[player] =
-				nil
-
+			depositCooldown[player] = nil
 		end
 	)
 end
@@ -775,9 +1313,9 @@ end
 
 lobbyZone.Touched:Connect(
 	function(hit)
-
 		local character =
-			hit:FindFirstAncestorOfClass(
+			hit:
+			FindFirstAncestorOfClass(
 				"Model"
 			)
 
@@ -791,7 +1329,9 @@ lobbyZone.Touched:Connect(
 				"Humanoid"
 			)
 
-		if not humanoid then
+		if not humanoid
+			or humanoid.Health <= 0 then
+
 			return
 		end
 
@@ -806,24 +1346,19 @@ lobbyZone.Touched:Connect(
 		end
 
 		if carriedEggs[player] then
-
-			depositEgg(
-				player
-			)
-
+			depositEgg(player)
 		end
 	end
 )
 
 --------------------------------------------------
--- PLAYER
+-- CHARACTER
 --------------------------------------------------
 
 local function setupCharacter(
 	player,
 	character
 )
-
 	local humanoid =
 		character:
 		WaitForChild(
@@ -832,39 +1367,33 @@ local function setupCharacter(
 
 	humanoid.Died:Connect(
 		function()
-
 			if carriedEggs[player] then
-
-				dropEgg(
-					player
-				)
-
+				dropEgg(player)
 			end
 		end
 	)
 end
 
-local function setupPlayer(player)
+--------------------------------------------------
+-- PLAYER
+--------------------------------------------------
 
-	createInventory(player)
+local function setupPlayer(player)
+	getOrCreateInventory(player)
 
 	if player.Character then
-
 		setupCharacter(
 			player,
 			player.Character
 		)
-
 	end
 
 	player.CharacterAdded:Connect(
 		function(character)
-
 			setupCharacter(
 				player,
 				character
 			)
-
 		end
 	)
 end
@@ -876,9 +1405,7 @@ Players.PlayerAdded:Connect(
 for _, player in ipairs(
 	Players:GetPlayers()
 	) do
-
 	setupPlayer(player)
-
 end
 
 --------------------------------------------------
@@ -887,33 +1414,37 @@ end
 
 Players.PlayerRemoving:Connect(
 	function(player)
+		local egg =
+			carriedEggs[player]
 
-		if carriedEggs[player] then
+		if egg
+			and egg.Parent then
 
-			local egg =
-				carriedEggs[player]
+			local spawnPart =
+				getOriginSpawn(egg)
 
-			local spawnName =
-				egg:GetAttribute(
-					"SpawnPoint"
-				)
+			eggOriginSpawn[egg] = nil
 
 			egg:Destroy()
 
-			carriedEggs[player] =
-				nil
+			carriedEggs[player] = nil
 
-			if spawnName then
-
+			if spawnPart then
 				scheduleRespawn(
-					spawnName
+					spawnPart
 				)
-
+			else
+				warn(
+					string.format(
+						"[EggSystem] %s je izašao noseći egg, ali original SpawnPoint nije pronađen.",
+						player.Name
+					)
+				)
 			end
 		end
 
-		depositCooldown[player] =
-			nil
+		carriedEggs[player] = nil
+		depositCooldown[player] = nil
 	end
 )
 
@@ -921,17 +1452,16 @@ Players.PlayerRemoving:Connect(
 -- INITIAL SPAWNS
 --------------------------------------------------
 
+scanSpawnPointNames()
+
 for _, spawnPart in ipairs(
 	spawnFolder:GetChildren()
 	) do
-
 	if spawnPart:IsA("BasePart") then
-
-		spawnEgg(
-			spawnPart
-		)
-
+		spawnEgg(spawnPart)
 	end
 end
 
-print("🥚 Egg system loaded")
+print(
+	"[EggSystem] Phase 4 egg system loaded."
+)
