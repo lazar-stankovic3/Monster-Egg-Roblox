@@ -100,4 +100,38 @@ Profiles.Volcano = {
 	},
 }
 
+Profiles.SporeLab = {
+	Brightness = 0.85,
+	ClockTime = 0,
+	ExposureCompensation = -0.45,
+
+	Ambient = Color3.fromRGB(14, 25, 32),
+	OutdoorAmbient = Color3.fromRGB(18, 32, 38),
+
+	Atmosphere = {
+		Density = 0.28,
+		Offset = 0,
+
+		Color = Color3.fromRGB(45, 90, 95),
+		Decay = Color3.fromRGB(10, 25, 28),
+
+		Glare = 0.02,
+		Haze = 1.4,
+	},
+
+	ColorCorrection = {
+		Brightness = -0.12,
+		Contrast = 0.25,
+		Saturation = -0.12,
+
+		TintColor = Color3.fromRGB(165, 215, 210),
+	},
+
+	Bloom = {
+		Intensity = 0.45,
+		Size = 24,
+		Threshold = 1.3,
+	},
+}
+
 return Profiles
