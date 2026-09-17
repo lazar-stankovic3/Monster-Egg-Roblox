@@ -1,6 +1,15 @@
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BASE_WALK_SPEED = 16
+local SLOW_MODE_WALK_SPEED = 8
+
+local slowModeEvent = ReplicatedStorage:FindFirstChild("SetSlowMode")
+if not slowModeEvent then
+	slowModeEvent = Instance.new("RemoteEvent")
+	slowModeEvent.Name = "SetSlowMode"
+	slowModeEvent.Parent = ReplicatedStorage
+end
 
 -- Pretvara Speed stat u stvarni Roblox WalkSpeed
 local function calculateWalkSpeed(speedStat)
@@ -28,10 +37,15 @@ local function updatePlayerSpeed(player)
 		return
 	end
 
-	humanoid.WalkSpeed = calculateWalkSpeed(speed.Value)
+	if player:GetAttribute("SlowMode") then
+		humanoid.WalkSpeed = SLOW_MODE_WALK_SPEED
+	else
+		humanoid.WalkSpeed = calculateWalkSpeed(speed.Value)
+	end
 end
 
 local function setupPlayer(player)
+	player:SetAttribute("SlowMode", false)
 
 	-------------------------------
 	-- STATS
@@ -79,6 +93,10 @@ local function setupPlayer(player)
 		updatePlayerSpeed(player)
 	end)
 
+	player:GetAttributeChangedSignal("SlowMode"):Connect(function()
+		updatePlayerSpeed(player)
+	end)
+
 	cash.Changed:Connect(function()
 		displayCash.Value = math.floor(cash.Value)
 	end)
@@ -101,6 +119,12 @@ local function setupPlayer(player)
 		characterAdded(player.Character)
 	end
 end
+
+slowModeEvent.OnServerEvent:Connect(function(player, enabled)
+	if typeof(enabled) == "boolean" then
+		player:SetAttribute("SlowMode", enabled)
+	end
+end)
 
 Players.PlayerAdded:Connect(setupPlayer)
 
