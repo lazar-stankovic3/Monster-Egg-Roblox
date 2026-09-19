@@ -1,20 +1,39 @@
 # Preostali zadaci
 
+## Trenutni status
+
+- [x] Faza 7: Studio potvrda carry movement penalty-ja.
+- Aktivna faza 9: vizuelni Egg Tool je implementiran; ceka Studio provere prema docs/FAZA_09.md. Korisnik je zatrazio nastavak 2026-09-19; preostale provere faze 8 su odlozene, nisu oznacene kao prosle.
+- Korisnik je potvrdio da ragdoll radi nakon dodavanja AnimationConstraint podrške. Poslednja izmena protiv sudara jajeta sa odbačenim igračem još čeka potvrdu.
+
 Procitati GAMEPLAY.md pre rada. Implementirati samo aktivnu fazu. Brisati stavku kada je zavrsena i proverena; ne brisati samo zato sto je kod napisan. Ne preskakati Studio potvrdu.
 
-## Aktivno — faza 3
+## Odloženo — faza 4 (Studio potvrda)
 
-- [ ] Postaviti Biomes modele i BiomeZone zapremine u stvarnoj Studio mapi prema docs/FAZA_03.md.
-- [ ] Potvrditi Studio testove iz docs/FAZA_03.md: ulaz/izlaz, prag 100, promena Speed-a, reset/teleport, vise bioma, preklapanje, dva igraca i regresija treninga/egg sistema. Kod implementiran; runtime test jos nije izvrsen.
+- [ ] U Studio postaviti modele iz ServerStorage.EggModels i `Biome` Attribute na svim EggSpawnPoints prema docs/FAZA_04.md.
+- [ ] Potvrditi Studio testove iz docs/FAZA_04.md: pool-ove, atribute, pickup/carry/drop/deposit i respawn bez regresije.
+
+## Odloženo — faza 5 (Studio potvrda)
+
+- [ ] Potvrditi RarityConfig i validaciju egg rarity-ja u Studio-u prema docs/FAZA_05.md. Kod je dodat; income se ne menja do faza 13/14.
+
+## Odloženo — faza 6 (Studio potvrda)
+
+- [ ] Potvrditi SizeConfig, validaciju size imena i očuvani scale spawn u Studio-u prema docs/FAZA_06.md. Kod je dodat; income se ne menja do faza 13/14.
+
+## Odloženo — faza 8 (Studio potvrda)
+
+- [ ] Potvrditi poslednji fix: ispušteno jaje ne zaustavlja odbacivanje; probati Tiny/Titanic i različite smerove gledanja.
+- [ ] Potvrditi jačinu odbacivanja 95 horizontalno / 42 vertikalno, ustajanje, vraćanje animacija i pickup-a, ponovljene udarce i reset tokom ragdoll-a.
+- [ ] Potvrditi kontinuirano praćenje, prepreke i zaustavljanje na drop/deposit/smrt/izlazak/safe zonu prema docs/FAZA_08.md.
+- [ ] Potvrditi biome/rarity brzine i dva istovremena lopova sa odvojenim Guardian targetima.
+- [ ] Potvrditi regresioni test na legacy Motor6D rig-u; korisnikov rig sa AnimationConstraint zglobovima već aktivira ragdoll.
+
+## Aktivno — faza 9 (Studio potvrda)
+
+- [ ] Potvrditi lobby deposit -> vizuelni Egg Tool, sacuvane metadata/ownership, jedan zapis i Tool po UID-u, equip/unequip bez dupliranja, respawn u istoj sesiji i dva igraca prema docs/FAZA_09.md.
 
 ## Sledece faze — tek nakon potvrde prethodne
-
-- [ ] Faza 4: EggConfig, biome egg pools, razliciti modeli jaja i svi egg Attributes; integracija sa postojecim EggSystem bez regresije pickup/carry/drop/deposit/respawn.
-- [ ] Faza 5: RarityConfig sa Common/Uncommon/Rare/Epic/Legendary/Mythic i multipliers.
-- [ ] Faza 6: SizeConfig income multipliers za Tiny/Normal/Large/Huge/Titanic; sacuvati postojece scale podatke.
-- [ ] Faza 7: carry movement penalty na calculated WalkSpeed i pouzdano uklanjanje na drop/deposit/smrt.
-- [ ] Faza 8: GuardianService, biome guardian speed, rarity bonus, pathfinding, target lopov, stop uslovi i forced drop; odrediti ponasanje kada vise igraca krade istovremeno.
-- [ ] Faza 9: lobby deposit -> pravi vizuelni Egg Tool u Backpack, metadata i ownership, equip bez dupliranja.
 - [ ] Faza 10: PlotService, dodela/cleanup OwnerUserId i pocetnih 6 EggSlots; ponasanje kada nema slobodnih plotova.
 - [ ] Faza 11: Place Egg prompt, ownership/proximity/slot/Tool validacija, prenos egg podataka na slot.
 - [ ] Faza 12: HatchService, rarity timer, countdown, weighted monster pool i zamena jajeta monsterom.

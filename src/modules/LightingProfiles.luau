@@ -50,6 +50,39 @@ Profiles.BioMarsh = {
 	},
 }
 
+Profiles.SporeLab = {
+	Brightness = 1.7,
+	ClockTime = 10.5,
+	ExposureCompensation = 0.12,
+
+	Ambient = Color3.fromRGB(58, 88, 96),
+	OutdoorAmbient = Color3.fromRGB(72, 108, 112),
+
+	Atmosphere = {
+		Density = 0.16,
+		Offset = 0.08,
+
+		Color = Color3.fromRGB(112, 178, 174),
+		Decay = Color3.fromRGB(48, 92, 88),
+
+		Glare = 0.08,
+		Haze = 0.65,
+	},
+
+	ColorCorrection = {
+		Brightness = 0.035,
+		Contrast = 0.06,
+		Saturation = 0.04,
+
+		TintColor = Color3.fromRGB(205, 255, 242),
+	},
+
+	Bloom = {
+		Intensity = 0.6,
+		Size = 20,
+		Threshold = 1.1,
+	},
+}
 Profiles.Desert = {
 	Brightness = 2.8,
 	ClockTime = 14,
@@ -100,38 +133,6 @@ Profiles.Volcano = {
 	},
 }
 
-Profiles.SporeLab = {
-	Brightness = 0.85,
-	ClockTime = 0,
-	ExposureCompensation = -0.45,
 
-	Ambient = Color3.fromRGB(14, 25, 32),
-	OutdoorAmbient = Color3.fromRGB(18, 32, 38),
-
-	Atmosphere = {
-		Density = 0.28,
-		Offset = 0,
-
-		Color = Color3.fromRGB(45, 90, 95),
-		Decay = Color3.fromRGB(10, 25, 28),
-
-		Glare = 0.02,
-		Haze = 1.4,
-	},
-
-	ColorCorrection = {
-		Brightness = -0.12,
-		Contrast = 0.25,
-		Saturation = -0.12,
-
-		TintColor = Color3.fromRGB(165, 215, 210),
-	},
-
-	Bloom = {
-		Intensity = 0.45,
-		Size = 24,
-		Threshold = 1.3,
-	},
-}
 
 return Profiles

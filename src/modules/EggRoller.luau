@@ -19,6 +19,30 @@ end
 local EggConfig =
 	require(eggConfigModule)
 
+local rarityConfigModule =
+	modulesFolder:WaitForChild("RarityConfig")
+
+if not rarityConfigModule:IsA("ModuleScript") then
+	error(
+		"[EggRoller] RarityConfig mora biti ModuleScript."
+	)
+end
+
+local RarityConfig =
+	require(rarityConfigModule)
+
+local sizeConfigModule =
+	modulesFolder:WaitForChild("SizeConfig")
+
+if not sizeConfigModule:IsA("ModuleScript") then
+	error(
+		"[EggRoller] SizeConfig mora biti ModuleScript."
+	)
+end
+
+local SizeConfig =
+	require(sizeConfigModule)
+
 local EggRoller = {}
 
 --------------------------------------------------
@@ -175,10 +199,7 @@ function EggRoller.RollEggForBiome(
 			)
 	end
 
-	if type(definition.Rarity) ~= "string"
-		or not EggConfig.AllowedRarities[
-			definition.Rarity
-		] then
+	if not RarityConfig.IsValid(definition.Rarity) then
 
 		return nil,
 			string.format(
@@ -268,6 +289,14 @@ function EggRoller.RollSize(
 
 		return nil,
 			"Odabrani size nema validan Name."
+	end
+
+	if not SizeConfig.IsValid(selectedSize.Name) then
+		return nil,
+			string.format(
+				"Size '%s' ne postoji u SizeConfig.",
+				tostring(selectedSize.Name)
+			)
 	end
 
 	if type(selectedSize.Scale) ~= "number"

@@ -17,19 +17,6 @@
 local EggConfig = {}
 
 --------------------------------------------------
--- ALLOWED RARITIES
---------------------------------------------------
-
-EggConfig.AllowedRarities = {
-	Common = true,
-	Uncommon = true,
-	Rare = true,
-	Epic = true,
-	Legendary = true,
-	Mythic = true,
-}
-
---------------------------------------------------
 -- EGG DEFINITIONS
 --------------------------------------------------
 --
@@ -153,8 +140,7 @@ EggConfig.BiomePools = {
 -- Ovo su POSTOJEĆE faza 1/2 vrednosti.
 -- Ne dodajemo income multiplier logiku.
 --
--- Faza 6 će kasnije dobiti poseban SizeConfig
--- za income multipliers.
+-- Income multiplikatori su definisani u zasebnom SizeConfig modulu.
 
 EggConfig.Sizes = {
 	{

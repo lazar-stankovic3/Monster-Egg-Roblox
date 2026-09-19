@@ -16,6 +16,16 @@ local function calculateWalkSpeed(speedStat)
 	return BASE_WALK_SPEED + 12 * math.log10((speedStat / 10) + 1)
 end
 
+local function getCarryMovementPenalty(player)
+	local penalty = player:GetAttribute("CarryMovementPenalty")
+
+	if typeof(penalty) ~= "number" then
+		return 0
+	end
+
+	return math.clamp(penalty, 0, 0.95)
+end
+
 local function updatePlayerSpeed(player)
 	local stats = player:FindFirstChild("Stats")
 	if not stats then
@@ -41,11 +51,16 @@ local function updatePlayerSpeed(player)
 		humanoid.WalkSpeed = SLOW_MODE_WALK_SPEED
 	else
 		humanoid.WalkSpeed = calculateWalkSpeed(speed.Value)
+			* (1 - getCarryMovementPenalty(player))
 	end
 end
 
 local function setupPlayer(player)
 	player:SetAttribute("SlowMode", false)
+
+	if player:GetAttribute("CarryMovementPenalty") == nil then
+		player:SetAttribute("CarryMovementPenalty", 0)
+	end
 
 	-------------------------------
 	-- STATS
@@ -94,6 +109,10 @@ local function setupPlayer(player)
 	end)
 
 	player:GetAttributeChangedSignal("SlowMode"):Connect(function()
+		updatePlayerSpeed(player)
+	end)
+
+	player:GetAttributeChangedSignal("CarryMovementPenalty"):Connect(function()
 		updatePlayerSpeed(player)
 	end)
 

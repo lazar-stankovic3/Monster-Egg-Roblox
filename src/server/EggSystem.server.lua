@@ -25,7 +25,10 @@
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local HttpService = game:GetService("HttpService")
+local GuardianHitService = require(script.Parent:WaitForChild("GuardianHitService"))
+local EggInventoryService = require(script.Parent:WaitForChild("EggInventoryService"))
 
 --------------------------------------------------
 -- RUN UI EVENT
@@ -103,12 +106,45 @@ local EggConfig =
 local EggRoller =
 	require(eggRollerModule :: ModuleScript)
 
+local sizeConfigModule =
+	modulesFolder:FindFirstChild("SizeConfig")
+
+if not sizeConfigModule then
+	error("[EggSystem] SizeConfig nije pronađen u ReplicatedStorage.Modules.")
+end
+
+if not sizeConfigModule:IsA("ModuleScript") then
+	error("[EggSystem] SizeConfig postoji, ali nije ModuleScript.")
+end
+
+local SizeConfig =
+	require(sizeConfigModule :: ModuleScript)
+
 --------------------------------------------------
 -- REFERENCES
 --------------------------------------------------
 
 local eggModelsFolder =
 	ServerStorage:WaitForChild("EggModels")
+
+-- GuardianService može samo da zatraži drop; EggSystem ostaje vlasnik carry stanja i fizike.
+local signals = ServerScriptService:FindFirstChild("GameSignals")
+if not signals then
+	signals = Instance.new("Folder")
+	signals.Name = "GameSignals"
+	signals.Parent = ServerScriptService
+end
+
+local guardianForceDrop = signals:FindFirstChild("GuardianForceDrop")
+if not guardianForceDrop then
+	guardianForceDrop = Instance.new("BindableEvent")
+	guardianForceDrop.Name = "GuardianForceDrop"
+	guardianForceDrop.Parent = signals
+end
+
+if not guardianForceDrop:IsA("BindableEvent") then
+	error("[EggSystem] GameSignals.GuardianForceDrop mora biti BindableEvent.")
+end
 
 local spawnFolder =
 	workspace:WaitForChild("EggSpawnPoints")
@@ -220,89 +256,10 @@ local function getOrCreateInventory(player)
 	return inventory
 end
 
-local function addEggToInventory(
-	player,
-	egg
-)
-	local inventory =
-		getOrCreateInventory(player)
-
-	if not inventory then
-		return false
-	end
-
-	local eggName =
-		egg:GetAttribute("EggName")
-
-	if type(eggName) ~= "string"
-		or eggName == "" then
-
-		eggName = "Egg"
-	end
-
-	local item = Instance.new("Folder")
-	item.Name = eggName
-
-	item:SetAttribute(
-		"UID",
-		egg:GetAttribute("UID")
-	)
-
-	item:SetAttribute(
-		"EggName",
-		egg:GetAttribute("EggName")
-	)
-
-	item:SetAttribute(
-		"EggType",
-		egg:GetAttribute("EggType")
-	)
-
-	item:SetAttribute(
-		"Biome",
-		egg:GetAttribute("Biome")
-	)
-
-	item:SetAttribute(
-		"Rarity",
-		egg:GetAttribute("Rarity")
-	)
-
-	item:SetAttribute(
-		"Size",
-		egg:GetAttribute("Size")
-	)
-
-	item:SetAttribute(
-		"Scale",
-		egg:GetAttribute("Scale")
-	)
-
-	item.Parent = inventory
-
-	print(
-		string.format(
-			"[EggSystem] %s deposited %s %s | UID=%s | Biome=%s | Rarity=%s",
-			player.Name,
-			tostring(
-				item:GetAttribute("Size")
-			),
-			tostring(
-				item:GetAttribute("EggName")
-			),
-			tostring(
-				item:GetAttribute("UID")
-			),
-			tostring(
-				item:GetAttribute("Biome")
-			),
-			tostring(
-				item:GetAttribute("Rarity")
-			)
-		)
-	)
-
-	return true
+local function addEggToInventory(player, egg)
+	local inventory = getOrCreateInventory(player)
+	if not inventory then return false end
+	return EggInventoryService.Deposit(player, egg, inventory)
 end
 
 --------------------------------------------------
@@ -609,7 +566,7 @@ local function validatePickup(
 	local character =
 		player.Character
 
-	if not character then
+	if not character or character:GetAttribute("GuardianRagdoll") == true then
 		return false
 	end
 
@@ -665,6 +622,25 @@ local function validatePickup(
 		head
 end
 
+local function getCarryMovementPenalty(egg)
+	local penalty = SizeConfig.GetCarryMovementPenalty(egg:GetAttribute("Size"))
+
+	if type(penalty) ~= "number" then
+		warn(string.format(
+			"[EggSystem] Egg UID=%s ima nevalidan Size '%s'; carry penalty nije primenjen.",
+			tostring(egg:GetAttribute("UID")),
+			tostring(egg:GetAttribute("Size"))
+		))
+		return nil
+	end
+
+	return penalty
+end
+
+local function clearCarryMovementPenalty(player)
+	player:SetAttribute("CarryMovementPenalty", 0)
+end
+
 --------------------------------------------------
 -- PICKUP
 --------------------------------------------------
@@ -684,6 +660,12 @@ pickupEgg = function(player, egg)
 		return
 	end
 
+	local carryPenalty = getCarryMovementPenalty(egg)
+
+	if carryPenalty == nil then
+		return
+	end
+
 	--------------------------------------------------
 	-- LOCK
 	--------------------------------------------------
@@ -699,6 +681,7 @@ pickupEgg = function(player, egg)
 	)
 
 	carriedEggs[player] = egg
+	player:SetAttribute("CarryMovementPenalty", carryPenalty)
 
 	--------------------------------------------------
 	-- REMOVE PROMPT
@@ -768,6 +751,7 @@ local function dropEgg(player)
 		or not egg.Parent then
 
 		carriedEggs[player] = nil
+		clearCarryMovementPenalty(player)
 
 		runUIEvent:FireClient(
 			player,
@@ -782,6 +766,7 @@ local function dropEgg(player)
 
 	if not primary then
 		carriedEggs[player] = nil
+		clearCarryMovementPenalty(player)
 
 		runUIEvent:FireClient(
 			player,
@@ -822,6 +807,7 @@ local function dropEgg(player)
 	)
 
 	carriedEggs[player] = nil
+	clearCarryMovementPenalty(player)
 
 	runUIEvent:FireClient(
 		player,
@@ -856,6 +842,16 @@ local function dropEgg(player)
 		)
 	)
 end
+
+guardianForceDrop.Event:Connect(function(player, expectedEgg, guardianPosition)
+	if typeof(player) == "Instance" and player:IsA("Player")
+		and expectedEgg ~= nil and carriedEggs[player] == expectedEgg then
+		dropEgg(player)
+		if typeof(guardianPosition) == "Vector3" then
+			GuardianHitService.Hit(player, guardianPosition, expectedEgg)
+		end
+	end
+end)
 
 --------------------------------------------------
 -- RESOLVE EGG DEFINITION
@@ -1276,6 +1272,7 @@ local function depositEgg(player)
 	end
 
 	carriedEggs[player] = nil
+	clearCarryMovementPenalty(player)
 
 	runUIEvent:FireClient(
 		player,
@@ -1369,6 +1366,8 @@ local function setupCharacter(
 		function()
 			if carriedEggs[player] then
 				dropEgg(player)
+			else
+				clearCarryMovementPenalty(player)
 			end
 		end
 	)
@@ -1444,6 +1443,7 @@ Players.PlayerRemoving:Connect(
 		end
 
 		carriedEggs[player] = nil
+		clearCarryMovementPenalty(player)
 		depositCooldown[player] = nil
 	end
 )

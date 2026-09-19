@@ -46,3 +46,21 @@ LocalScripts za UI. Ciljno Remotes folder; faza 3 koristi eksplicitno trazeni Re
 
 Korisnik je potvrdio postojeci EggSystem (pickup/carry/deposit/respawn), PlayerStats i Training/Treadmill sa SpeedGain. Kod se nalazi u src/server. Mapa, modeli i postojeci Index UI nisu sacuvani u ovom Rojo repozitorijumu; postojece Studio asset-e treba sacuvati.
 Faza 3 kod je dodat; runtime potvrda u Studio jos nije uradjena. Uputstvo: docs/FAZA_03.md. Preostali zadaci: TODO.md.
+
+## Nastavak rada — 2026-09-18
+
+Istorijski zapis; za trenutno stanje videti noviji zapis ispod.
+
+Faza 7 je u celosti potvrđena od korisnika. Aktivna je faza 8; ne prelaziti na fazu 9 bez njene potvrde. Faze 4–6 zadržavaju ranije odložene Studio provere.
+
+Implementirani su GuardianService, GuardianConfig, GuardianHitService i klijentski GuardianRagdoll. Svako ukradeno jaje dobija zasebnog čuvara. Opcioni GuardianTemplate ima prednost; bez modela generiše se jednostavan NPC. Praćenje cilja osvežava se na 0.05 s, a putanja računa u pozadini sa intervalom 0.35 s. Udarac izaziva drop, odbacivanje od Guardiana i privremeni ragdoll sa ustajanjem nakon sletanja (maksimalno trajanje 5 s).
+
+Korisnik je potvrdio da ragdoll radi nakon dodavanja podrške za AnimationConstraint pored Motor6D. Odbacivanje je zatim pojačano na 95 horizontalno / 42 vertikalno. Poslednje prijavljen problem bio je da veliko ispušteno jaje zaustavlja let. Dodat je privremeni NoCollisionConstraint između tog jajeta i svih delova pogođenog karaktera, uključujući ragdoll collidere; jaje se ignoriše i pri proveri sletanja. Ovaj poslednji fix još nije potvrđen u Studio-u.
+
+Rojo build prolazi, ali proverava pakovanje, ne fizičko ponašanje u Studio-u. Detalji i preostali testovi: docs/FAZA_08.md i TODO.md. Mapa i modeli ostaju u korisnikovom Studio projektu; čuvati postojeće asset-e.
+
+## Nastavak rada — 2026-09-19
+
+Na korisnikov zahtev za nastavak implementirana je faza 9. Nepotvrdjeni Studio testovi faze 8 su ostali odlozeni, bez oznacavanja da su prosli. Aktivna faza je 9, prema docs/FAZA_09.md.
+
+EggInventoryService stvara zapis po UID-u i vizuelni Tool u Backpack-u pri lobby deposit-u. Tool cuva metadata i OwnerUserId, ima zavaren nekolizioni model jajeta i ne moze se rucno ispustiti. Equip premesta istu instancu. Prikaz velikih jaja u ruci ogranicen je na 4 studa, a originalni Size/Scale ostaju sacuvani. Server obnavlja Tool-ove nakon respawna u istoj sesiji. DataStore jos nije implementiran. Sledeci korak je Studio test faze 9, ne faza 10.

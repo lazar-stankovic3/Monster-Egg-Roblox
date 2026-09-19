@@ -1,0 +1,4201 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <Color3 name="Ambient">
+        <R>0</R>
+        <G>0</G>
+        <B>0</B>
+      </Color3>
+      <float name="Brightness">2</float>
+      <bool name="GlobalShadows">true</bool>
+      <bool name="Outlines">false</bool>
+      <token name="Technology">1</token>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Modules</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">EggConfig</string>
+          <string name="Source"><![CDATA[--!strict
+
+-- ReplicatedStorage.Modules.EggConfig
+-- Faza 4
+--
+-- Ovde se nalaze:
+-- 1. stabilni EggType identifikatori
+-- 2. display imena
+-- 3. ModelName koji mora postojati u ServerStorage.EggModels
+-- 4. rarity metadata
+-- 5. biome egg pool-ovi
+-- 6. postojeće size šanse
+--
+-- POOL WEIGHTS SU PODESIVI.
+-- Trenutni početni balans je 60 / 30 / 10.
+
+local EggConfig = {}
+
+--------------------------------------------------
+-- EGG DEFINITIONS
+--------------------------------------------------
+--
+-- EggType je stabilni ID.
+-- Ne menjaj postojeći EggType kasnije samo zato
+-- što želiš drugo display ime ili drugi model.
+--
+-- EggName = ime koje vidi igrač.
+-- ModelName = tačno ime Model-a u ServerStorage.EggModels.
+-- Rarity = trenutno samo metadata.
+
+EggConfig.EggTypes = {
+	hatchling_egg = {
+		EggType = "hatchling_egg",
+		EggName = "Hatchling Egg",
+		ModelName = "HatchlingEgg",
+		Rarity = "Common",
+	},
+
+	forest_egg = {
+		EggType = "forest_egg",
+		EggName = "Forest Egg",
+		ModelName = "ForestEgg",
+		Rarity = "Uncommon",
+	},
+
+	slime_egg = {
+		EggType = "slime_egg",
+		EggName = "Slime Egg",
+		ModelName = "SlimeEgg",
+		Rarity = "Rare",
+	},
+
+	magma_egg = {
+		EggType = "magma_egg",
+		EggName = "Magma Egg",
+		ModelName = "MagmaEgg",
+		Rarity = "Rare",
+	},
+
+	inferno_egg = {
+		EggType = "inferno_egg",
+		EggName = "Inferno Egg",
+		ModelName = "InfernoEgg",
+		Rarity = "Epic",
+	},
+
+	dragon_egg = {
+		EggType = "dragon_egg",
+		EggName = "Dragon Egg",
+		ModelName = "DragonEgg",
+		Rarity = "Legendary",
+	},
+}
+
+--------------------------------------------------
+-- LEGACY FALLBACK
+--------------------------------------------------
+--
+-- Koristi se ISKLJUČIVO kada spawn Part nema
+-- Biome Attribute.
+--
+-- Ako Biome Attribute postoji, ali nije validan,
+-- NE koristi se ovaj fallback.
+
+EggConfig.LegacyBasicEgg = {
+	EggType = "basic_egg",
+	EggName = "Basic Egg",
+	ModelName = "BasicEgg",
+	Rarity = "Common",
+	Biome = "Legacy",
+}
+
+--------------------------------------------------
+-- BIOME POOLS
+--------------------------------------------------
+--
+-- Weight vrednosti su podesive.
+-- Ne moraju zbirno biti 100.
+--
+-- Primer:
+-- 60 / 30 / 10 može kasnije biti
+-- 70 / 25 / 5 bez promene EggSystem skripte.
+
+EggConfig.BiomePools = {
+	HatchlingFields = {
+		{
+			EggType = "hatchling_egg",
+			Weight = 60,
+		},
+		{
+			EggType = "forest_egg",
+			Weight = 30,
+		},
+		{
+			EggType = "slime_egg",
+			Weight = 10,
+		},
+	},
+
+	Volcano = {
+		{
+			EggType = "magma_egg",
+			Weight = 60,
+		},
+		{
+			EggType = "inferno_egg",
+			Weight = 30,
+		},
+		{
+			EggType = "dragon_egg",
+			Weight = 10,
+		},
+	},
+}
+
+--------------------------------------------------
+-- EXISTING SIZE CONFIG
+--------------------------------------------------
+--
+-- Ovo su POSTOJEĆE faza 1/2 vrednosti.
+-- Ne dodajemo income multiplier logiku.
+--
+-- Income multiplikatori su definisani u zasebnom SizeConfig modulu.
+
+EggConfig.Sizes = {
+	{
+		Name = "Tiny",
+		Scale = 0.7,
+		Weight = 20,
+	},
+
+	{
+		Name = "Normal",
+		Scale = 1,
+		Weight = 45,
+	},
+
+	{
+		Name = "Large",
+		Scale = 1.4,
+		Weight = 22,
+	},
+
+	{
+		Name = "Huge",
+		Scale = 1.9,
+		Weight = 10,
+	},
+
+	{
+		Name = "Titanic",
+		Scale = 2.6,
+		Weight = 3,
+	},
+}
+
+return EggConfig
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">EggRoller</string>
+          <string name="Source"><![CDATA[-- ReplicatedStorage.Modules.EggRoller
+-- Faza 4
+
+local ReplicatedStorage =
+	game:GetService("ReplicatedStorage")
+
+local modulesFolder =
+	ReplicatedStorage:WaitForChild("Modules")
+
+local eggConfigModule =
+	modulesFolder:WaitForChild("EggConfig")
+
+if not eggConfigModule:IsA("ModuleScript") then
+	error(
+		"[EggRoller] EggConfig mora biti ModuleScript."
+	)
+end
+
+local EggConfig =
+	require(eggConfigModule)
+
+local rarityConfigModule =
+	modulesFolder:WaitForChild("RarityConfig")
+
+if not rarityConfigModule:IsA("ModuleScript") then
+	error(
+		"[EggRoller] RarityConfig mora biti ModuleScript."
+	)
+end
+
+local RarityConfig =
+	require(rarityConfigModule)
+
+local sizeConfigModule =
+	modulesFolder:WaitForChild("SizeConfig")
+
+if not sizeConfigModule:IsA("ModuleScript") then
+	error(
+		"[EggRoller] SizeConfig mora biti ModuleScript."
+	)
+end
+
+local SizeConfig =
+	require(sizeConfigModule)
+
+local EggRoller = {}
+
+--------------------------------------------------
+-- ROLL EGG FOR BIOME
+--------------------------------------------------
+
+function EggRoller.RollEggForBiome(
+	biomeKey,
+	randomObject
+)
+	if type(biomeKey) ~= "string"
+		or biomeKey == "" then
+
+		return nil,
+			"Biome key nije validan string."
+	end
+
+	local pool =
+		EggConfig.BiomePools[biomeKey]
+
+	if not pool then
+		return nil,
+			string.format(
+				"Biome pool '%s' ne postoji u EggConfig.",
+				biomeKey
+			)
+	end
+
+	if #pool == 0 then
+		return nil,
+			string.format(
+				"Biome pool '%s' je prazan.",
+				biomeKey
+			)
+	end
+
+	--------------------------------------------------
+	-- TOTAL WEIGHT
+	--------------------------------------------------
+
+	local totalWeight = 0
+
+	for index, entry in ipairs(pool) do
+		if type(entry.Weight) ~= "number"
+			or entry.Weight <= 0 then
+
+			return nil,
+				string.format(
+					"Biome '%s' entry #%d ima nevalidan Weight.",
+					biomeKey,
+					index
+				)
+		end
+
+		totalWeight += entry.Weight
+	end
+
+	if totalWeight <= 0 then
+		return nil,
+			string.format(
+				"Biome '%s' ima totalWeight <= 0.",
+				biomeKey
+			)
+	end
+
+	--------------------------------------------------
+	-- RANDOM ROLL
+	--------------------------------------------------
+
+	local roll =
+		randomObject:NextNumber(
+			0,
+			totalWeight
+		)
+
+	local runningWeight = 0
+	local selectedEntry = nil
+
+	for _, entry in ipairs(pool) do
+		runningWeight += entry.Weight
+
+		if roll <= runningWeight then
+			selectedEntry = entry
+			break
+		end
+	end
+
+	-- floating point fallback
+	if not selectedEntry then
+		selectedEntry = pool[#pool]
+	end
+
+	--------------------------------------------------
+	-- EGG TYPE
+	--------------------------------------------------
+
+	local eggType =
+		selectedEntry.EggType
+
+	if type(eggType) ~= "string"
+		or eggType == "" then
+
+		return nil,
+			string.format(
+				"Biome '%s' ima pool entry bez validnog EggType.",
+				biomeKey
+			)
+	end
+
+	local definition =
+		EggConfig.EggTypes[eggType]
+
+	if not definition then
+		return nil,
+			string.format(
+				"EggType '%s' iz biome-a '%s' ne postoji u EggConfig.EggTypes.",
+				eggType,
+				biomeKey
+			)
+	end
+
+	--------------------------------------------------
+	-- VALIDATE DEFINITION
+	--------------------------------------------------
+
+	if definition.EggType ~= eggType then
+		return nil,
+			string.format(
+				"Egg definition '%s' ima pogrešan EggType '%s'.",
+				eggType,
+				tostring(
+					definition.EggType
+				)
+			)
+	end
+
+	if type(definition.EggName) ~= "string"
+		or definition.EggName == "" then
+
+		return nil,
+			string.format(
+				"EggType '%s' nema validan EggName.",
+				eggType
+			)
+	end
+
+	if type(definition.ModelName) ~= "string"
+		or definition.ModelName == "" then
+
+		return nil,
+			string.format(
+				"EggType '%s' nema validan ModelName.",
+				eggType
+			)
+	end
+
+	if not RarityConfig.IsValid(definition.Rarity) then
+
+		return nil,
+			string.format(
+				"EggType '%s' ima nevalidan Rarity '%s'.",
+				eggType,
+				tostring(
+					definition.Rarity
+				)
+			)
+	end
+
+	return definition, nil
+end
+
+--------------------------------------------------
+-- ROLL SIZE
+--------------------------------------------------
+
+function EggRoller.RollSize(
+	randomObject
+)
+	local sizes =
+		EggConfig.Sizes
+
+	if not sizes
+		or #sizes == 0 then
+
+		return nil,
+			"EggConfig.Sizes je prazan."
+	end
+
+	local totalWeight = 0
+
+	for index, sizeInfo in ipairs(
+		sizes
+	) do
+		if type(sizeInfo.Weight) ~= "number"
+			or sizeInfo.Weight <= 0 then
+
+			return nil,
+				string.format(
+					"Size entry #%d ima nevalidan Weight.",
+					index
+				)
+		end
+
+		totalWeight += sizeInfo.Weight
+	end
+
+	if totalWeight <= 0 then
+		return nil,
+			"Size totalWeight je <= 0."
+	end
+
+	local roll =
+		randomObject:NextNumber(
+			0,
+			totalWeight
+		)
+
+	local runningWeight = 0
+	local selectedSize = nil
+
+	for _, sizeInfo in ipairs(
+		sizes
+	) do
+		runningWeight +=
+			sizeInfo.Weight
+
+		if roll <= runningWeight then
+			selectedSize = sizeInfo
+			break
+		end
+	end
+
+	if not selectedSize then
+		selectedSize =
+			sizes[#sizes]
+	end
+
+	--------------------------------------------------
+	-- VALIDATE SIZE
+	--------------------------------------------------
+
+	if type(selectedSize.Name) ~= "string"
+		or selectedSize.Name == "" then
+
+		return nil,
+			"Odabrani size nema validan Name."
+	end
+
+	if not SizeConfig.IsValid(selectedSize.Name) then
+		return nil,
+			string.format(
+				"Size '%s' ne postoji u SizeConfig.",
+				tostring(selectedSize.Name)
+			)
+	end
+
+	if type(selectedSize.Scale) ~= "number"
+		or selectedSize.Scale <= 0 then
+
+		return nil,
+			string.format(
+				"Size '%s' nema validan Scale.",
+				tostring(
+					selectedSize.Name
+				)
+			)
+	end
+
+	return selectedSize, nil
+end
+
+return EggRoller
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">GuardianConfig</string>
+          <string name="Source"><![CDATA[--!strict
+
+-- ReplicatedStorage.Modules.GuardianConfig
+-- Faza 8. Guardian koristi Humanoid.WalkSpeed, nikada Player.Stats.Speed.
+
+local GuardianConfig = {}
+
+GuardianConfig.DefaultBiomeSpeed = 25
+GuardianConfig.CatchDistance = 5
+GuardianConfig.SafeZonePadding = 4
+GuardianConfig.PathRecomputeSeconds = 0.35
+GuardianConfig.ChaseTickSeconds = 0.05
+GuardianConfig.WaypointReachDistance = 2
+GuardianConfig.KnockbackSpeed = 95
+GuardianConfig.KnockbackUpSpeed = 42
+GuardianConfig.RagdollMinSeconds = 1
+GuardianConfig.RagdollMaxSeconds = 5
+GuardianConfig.RagdollGroundedSeconds = 0.4
+
+local biomeBaseSpeed: { [string]: number } = {
+	HatchlingFields = 25,
+	Volcano = 45,
+	Void = 70,
+}
+GuardianConfig.BiomeBaseSpeed = biomeBaseSpeed
+
+-- Procentualni dodatak na biome baznu brzinu.
+local raritySpeedBonus: { [string]: number } = {
+	Common = 0,
+	Uncommon = 0.025,
+	Rare = 0.05,
+	Epic = 0.10,
+	Legendary = 0.20,
+	Mythic = 0.30,
+}
+GuardianConfig.RaritySpeedBonus = raritySpeedBonus
+
+function GuardianConfig.GetWalkSpeed(biomeName: unknown, rarityName: unknown): number
+	local baseSpeed = if type(biomeName) == "string" then GuardianConfig.BiomeBaseSpeed[biomeName] else nil
+	baseSpeed = if type(baseSpeed) == "number" then baseSpeed else GuardianConfig.DefaultBiomeSpeed
+	local bonus = if type(rarityName) == "string" then GuardianConfig.RaritySpeedBonus[rarityName] else nil
+	bonus = if type(bonus) == "number" then bonus else 0
+	return baseSpeed * (1 + bonus)
+end
+
+return GuardianConfig
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">LightingProfiles</string>
+          <string name="Source"><![CDATA[local Profiles = {}
+
+Profiles.HatchlingFields = {
+	Brightness = 2.5,
+	ClockTime = 13,
+	ExposureCompensation = 0.1,
+
+	Ambient = Color3.fromRGB(145, 155, 130),
+	OutdoorAmbient = Color3.fromRGB(170, 180, 160),
+
+	Atmosphere = {
+		Density = 0.18,
+		Offset = 0.1,
+		Color = Color3.fromRGB(210, 230, 190),
+		Decay = Color3.fromRGB(120, 150, 100),
+		Glare = 0.15,
+		Haze = 0.5,
+	},
+
+	ColorCorrection = {
+		Brightness = 0.03,
+		Contrast = 0.05,
+		Saturation = 0.1,
+		TintColor = Color3.fromRGB(255, 250, 225),
+	},
+}
+
+Profiles.BioMarsh = {
+	Brightness = 1.8,
+	ClockTime = 15,
+	ExposureCompensation = -0.15,
+
+	Ambient = Color3.fromRGB(75, 90, 70),
+	OutdoorAmbient = Color3.fromRGB(95, 110, 85),
+
+	Atmosphere = {
+		Density = 0.4,
+		Offset = 0,
+		Color = Color3.fromRGB(130, 150, 105),
+		Decay = Color3.fromRGB(50, 70, 45),
+		Glare = 0,
+		Haze = 2,
+	},
+
+	ColorCorrection = {
+		Brightness = -0.05,
+		Contrast = 0.12,
+		Saturation = -0.2,
+		TintColor = Color3.fromRGB(190, 210, 160),
+	},
+}
+
+Profiles.SporeLab = {
+	Brightness = 1.7,
+	ClockTime = 10.5,
+	ExposureCompensation = 0.12,
+
+	Ambient = Color3.fromRGB(58, 88, 96),
+	OutdoorAmbient = Color3.fromRGB(72, 108, 112),
+
+	Atmosphere = {
+		Density = 0.16,
+		Offset = 0.08,
+
+		Color = Color3.fromRGB(112, 178, 174),
+		Decay = Color3.fromRGB(48, 92, 88),
+
+		Glare = 0.08,
+		Haze = 0.65,
+	},
+
+	ColorCorrection = {
+		Brightness = 0.035,
+		Contrast = 0.06,
+		Saturation = 0.04,
+
+		TintColor = Color3.fromRGB(205, 255, 242),
+	},
+
+	Bloom = {
+		Intensity = 0.6,
+		Size = 20,
+		Threshold = 1.1,
+	},
+}
+Profiles.Desert = {
+	Brightness = 2.8,
+	ClockTime = 14,
+	ExposureCompensation = 0.05,
+
+	Ambient = Color3.fromRGB(180, 145, 100),
+	OutdoorAmbient = Color3.fromRGB(210, 175, 120),
+
+	Atmosphere = {
+		Density = 0.3,
+		Offset = 0.15,
+		Color = Color3.fromRGB(235, 190, 125),
+		Decay = Color3.fromRGB(170, 105, 55),
+		Glare = 0.5,
+		Haze = 2.5,
+	},
+
+	ColorCorrection = {
+		Brightness = 0.03,
+		Contrast = 0.08,
+		Saturation = -0.05,
+		TintColor = Color3.fromRGB(255, 220, 165),
+	},
+}
+
+Profiles.Volcano = {
+	Brightness = 1.3,
+	ClockTime = 18,
+	ExposureCompensation = -0.25,
+
+	Ambient = Color3.fromRGB(90, 55, 45),
+	OutdoorAmbient = Color3.fromRGB(110, 65, 50),
+
+	Atmosphere = {
+		Density = 0.48,
+		Offset = 0,
+		Color = Color3.fromRGB(115, 80, 65),
+		Decay = Color3.fromRGB(55, 25, 20),
+		Glare = 0.3,
+		Haze = 3,
+	},
+
+	ColorCorrection = {
+		Brightness = -0.08,
+		Contrast = 0.2,
+		Saturation = -0.05,
+		TintColor = Color3.fromRGB(255, 155, 120),
+	},
+}
+
+
+
+return Profiles
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">RarityConfig</string>
+          <string name="Source"><![CDATA[--!strict
+
+-- ReplicatedStorage.Modules.RarityConfig
+-- Faza 5
+--
+-- Jedini izvor istine za stabilna rarity imena i njihove income multipliere.
+-- Mnozilac se jos ne primenjuje na Cash: to radi Monster/Income sistem u fazama 13 i 14.
+
+export type RarityName =
+	"Common"
+	| "Uncommon"
+	| "Rare"
+	| "Epic"
+	| "Legendary"
+	| "Mythic"
+
+export type Definition = {
+	Name: RarityName,
+	IncomeMultiplier: number,
+}
+
+local RarityConfig = {}
+
+local definitions: { [string]: Definition } = {
+	Common = {
+		Name = "Common",
+		IncomeMultiplier = 1,
+	},
+	Uncommon = {
+		Name = "Uncommon",
+		IncomeMultiplier = 1.5,
+	},
+	Rare = {
+		Name = "Rare",
+		IncomeMultiplier = 2.5,
+	},
+	Epic = {
+		Name = "Epic",
+		IncomeMultiplier = 5,
+	},
+	Legendary = {
+		Name = "Legendary",
+		IncomeMultiplier = 10,
+	},
+	Mythic = {
+		Name = "Mythic",
+		IncomeMultiplier = 25,
+	},
+}
+
+RarityConfig.Definitions = definitions
+
+function RarityConfig.IsValid(rarityName: unknown): boolean
+	return type(rarityName) == "string"
+		and definitions[rarityName] ~= nil
+end
+
+function RarityConfig.GetDefinition(
+	rarityName: unknown
+): Definition?
+	if type(rarityName) ~= "string" then
+		return nil
+	end
+
+	return definitions[rarityName]
+end
+
+function RarityConfig.GetIncomeMultiplier(
+	rarityName: unknown
+): number?
+	local definition = RarityConfig.GetDefinition(rarityName)
+
+	if not definition then
+		return nil
+	end
+
+	return definition.IncomeMultiplier
+end
+
+return RarityConfig
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
+          <string name="Name">SizeConfig</string>
+          <string name="Source"><![CDATA[--!strict
+
+-- ReplicatedStorage.Modules.SizeConfig
+-- Faza 6
+--
+-- Jedini izvor istine za income multipliere velicine.
+-- Vizuelni Scale i spawn Weight ostaju u EggConfig.Sizes, jer su deo postojeceg egg spawn balansa.
+
+export type SizeName =
+	"Tiny"
+	| "Normal"
+	| "Large"
+	| "Huge"
+	| "Titanic"
+
+export type Definition = {
+	Name: SizeName,
+	IncomeMultiplier: number,
+	CarryMovementPenalty: number,
+}
+
+local SizeConfig = {}
+
+local definitions: { [string]: Definition } = {
+	Tiny = { Name = "Tiny", IncomeMultiplier = 0.7, CarryMovementPenalty = 0 },
+	Normal = { Name = "Normal", IncomeMultiplier = 1, CarryMovementPenalty = 0 },
+	Large = { Name = "Large", IncomeMultiplier = 1.5, CarryMovementPenalty = 0.05 },
+	Huge = { Name = "Huge", IncomeMultiplier = 2.5, CarryMovementPenalty = 0.1 },
+	Titanic = { Name = "Titanic", IncomeMultiplier = 5, CarryMovementPenalty = 0.2 },
+}
+
+SizeConfig.Definitions = definitions
+
+function SizeConfig.IsValid(sizeName: unknown): boolean
+	return type(sizeName) == "string"
+		and definitions[sizeName] ~= nil
+end
+
+function SizeConfig.GetDefinition(sizeName: unknown): Definition?
+	if type(sizeName) ~= "string" then
+		return nil
+	end
+
+	return definitions[sizeName]
+end
+
+function SizeConfig.GetIncomeMultiplier(sizeName: unknown): number?
+	local definition = SizeConfig.GetDefinition(sizeName)
+
+	if not definition then
+		return nil
+	end
+
+	return definition.IncomeMultiplier
+end
+
+function SizeConfig.GetCarryMovementPenalty(sizeName: unknown): number?
+	local definition = SizeConfig.GetDefinition(sizeName)
+
+	if not definition then
+		return nil
+	end
+
+	return definition.CarryMovementPenalty
+end
+
+return SizeConfig
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="Folder" referent="9">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="10">
+        <Properties>
+          <string name="Name">Hello</string>
+          <string name="Source"><![CDATA[return function()
+	print("Hello, world!")
+end
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="11">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="12">
+      <Properties>
+        <string name="Name">Server</string>
+      </Properties>
+      <Item class="ModuleScript" referent="13">
+        <Properties>
+          <string name="Name">BiomeService</string>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local BiomeService = {}
+local CHECK_INTERVAL = 0.15
+local started = false
+local states = {}
+
+local function isFiniteNumber(value)
+	return typeof(value) == "number" and value == value and math.abs(value) < math.huge
+end
+
+local function getOrCreate(parent, className, name)
+	local instance = parent:FindFirstChild(name)
+	if instance then
+		assert(instance:IsA(className), instance:GetFullName() .. " must be a " .. className)
+		return instance
+	end
+	instance = Instance.new(className)
+	instance.Name = name
+	instance.Parent = parent
+	return instance
+end
+
+local function contains(zone, position)
+	-- Local coordinates also support rotated zones; body parts/accessories are irrelevant.
+	local point = zone.CFrame:PointToObjectSpace(position)
+	local half = zone.Size * 0.5
+	return math.abs(point.X) <= half.X
+		and math.abs(point.Y) <= half.Y
+		and math.abs(point.Z) <= half.Z
+end
+
+local function collectBiomes(folder)
+	local biomes = {}
+	for _, model in ipairs(folder:GetChildren()) do
+		if not model:IsA("Model") then
+			continue
+		end
+		local zone = model:FindFirstChild("BiomeZone")
+		local recommended = model:GetAttribute("RecommendedSpeed")
+		if not zone or not zone:IsA("BasePart") or not isFiniteNumber(recommended) or recommended < 0 then
+			continue
+		end
+		local displayName = model:GetAttribute("DisplayName")
+		table.insert(biomes, {
+			Model = model,
+			Zone = zone,
+			RecommendedSpeed = recommended,
+			Name = if typeof(displayName) == "string" and displayName ~= "" then displayName else model.Name,
+		})
+	end
+	-- Overlapping zones choose the higher recommendation, then model name.
+	table.sort(biomes, function(a, b)
+		if a.RecommendedSpeed == b.RecommendedSpeed then
+			return a.Model.Name < b.Model.Name
+		end
+		return a.RecommendedSpeed > b.RecommendedSpeed
+	end)
+	return biomes
+end
+
+local function getSnapshot(player, biomes)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local stats = player:FindFirstChild("Stats")
+	local speed = stats and stats:FindFirstChild("Speed")
+	if not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart")
+		or not speed or not (speed:IsA("NumberValue") or speed:IsA("IntValue"))
+		or not isFiniteNumber(speed.Value) then
+		return nil
+	end
+	for _, biome in ipairs(biomes) do
+		if contains(biome.Zone, root.Position) then
+			return {
+				Model = biome.Model,
+				BiomeName = biome.Name,
+				RecommendedSpeed = biome.RecommendedSpeed,
+				PlayerSpeed = speed.Value,
+			}
+		end
+	end
+	return nil
+end
+
+local function sameSnapshot(a, b)
+	if a == nil or b == nil then
+		return a == b
+	end
+	return a.Model == b.Model and a.BiomeName == b.BiomeName
+		and a.RecommendedSpeed == b.RecommendedSpeed and a.PlayerSpeed == b.PlayerSpeed
+end
+
+function BiomeService.Start()
+	if started then
+		return
+	end
+	started = true
+	local folder = getOrCreate(workspace, "Folder", "Biomes")
+	-- Phase 3's explicit path; keep a single event, not two competing copies.
+	local event = getOrCreate(ReplicatedStorage, "RemoteEvent", "BiomeUIEvent")
+
+	local function updatePlayer(player, state, biomes, force)
+		local snapshot = getSnapshot(player, biomes)
+		if not force and sameSnapshot(state.Snapshot, snapshot) then
+			return
+		end
+		state.Snapshot = snapshot
+		if snapshot then
+			event:FireClient(player, {
+				Visible = true,
+				BiomeName = snapshot.BiomeName,
+				RecommendedSpeed = snapshot.RecommendedSpeed,
+				PlayerSpeed = snapshot.PlayerSpeed,
+				Status = if snapshot.PlayerSpeed >= snapshot.RecommendedSpeed then "READY" else "DANGEROUS",
+			})
+		else
+			event:FireClient(player, { Visible = false })
+		end
+	end
+
+	-- Client readiness only. No client-supplied biome, stat, or gameplay decision is accepted.
+	-- This avoids losing the first snapshot if a player spawns inside a biome before UI loads.
+	event.OnServerEvent:Connect(function(player, action)
+		if action ~= "Ready" then
+			return
+		end
+		local state = states[player]
+		local now = os.clock()
+		if state and now - state.LastReady < 2 then
+			return
+		end
+		state = state or {}
+		state.LastReady = now
+		states[player] = state
+		updatePlayer(player, state, collectBiomes(folder), true)
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		states[player] = nil
+	end)
+
+	local elapsed = 0
+	RunService.Heartbeat:Connect(function(deltaTime)
+		elapsed += deltaTime
+		if elapsed < CHECK_INTERVAL then
+			return
+		end
+		elapsed %= CHECK_INTERVAL
+		local biomes = collectBiomes(folder)
+		for player, state in pairs(states) do
+			updatePlayer(player, state, biomes, false)
+		end
+	end)
+end
+
+return BiomeService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="14">
+        <Properties>
+          <string name="Name">BiomeSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local BiomeService = require(script.Parent:WaitForChild("BiomeService"))
+BiomeService.Start()
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="15">
+        <Properties>
+          <string name="Name">EggInventoryService</string>
+          <string name="Source"><![CDATA[-- Server-owned inventory records; Tools are replaceable views of those records.
+local Players = game:GetService("Players")
+local Service = {}
+local states = {}
+local fields = { "UID", "EggType", "EggName", "Biome", "Rarity", "Size", "Scale" }
+
+local function makeTool(player, egg)
+	local visual = egg:Clone()
+	assert(visual and visual.PrimaryPart, "Egg visual must have a PrimaryPart")
+	-- Never copy world carry welds, prompts, scripts, or chase state into a Tool.
+	for _, object in ipairs(visual:GetDescendants()) do
+		if object:IsA("LuaSourceContainer") or object:IsA("JointInstance")
+			or object:IsA("Constraint") or object:IsA("ProximityPrompt") then
+			object:Destroy()
+		end
+	end
+	for name in pairs(visual:GetAttributes()) do visual:SetAttribute(name, nil) end
+	visual.Name = "EggVisual"
+	local extent = visual:GetExtentsSize()
+	local longest = math.max(extent.X, extent.Y, extent.Z)
+	if longest > 4 then visual:ScaleTo(visual:GetScale() * 4 / longest) end
+	visual:PivotTo(CFrame.new())
+	local tool = Instance.new("Tool")
+	tool.Name = tostring(egg:GetAttribute("Size")) .. " " .. tostring(egg:GetAttribute("EggName"))
+	tool.ToolTip = tostring(egg:GetAttribute("Rarity")) .. " | " .. tostring(egg:GetAttribute("Biome"))
+	tool.RequiresHandle = true
+	tool.CanBeDropped = false
+	tool:SetAttribute("IsEggTool", true)
+	tool:SetAttribute("OwnerUserId", player.UserId)
+	for _, field in ipairs(fields) do tool:SetAttribute(field, egg:GetAttribute(field)) end
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(0.4, 0.4, 0.4)
+	handle.Transparency = 1
+	handle.CFrame = CFrame.new()
+	handle.CanCollide, handle.CanTouch, handle.CanQuery = false, false, false
+	handle.Massless = true
+	handle.Parent = tool
+	visual.Parent = tool
+	for _, part in ipairs(visual:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = false
+			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
+			part.Massless = true
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0, weld.Part1 = handle, part
+			weld.Parent = part
+		end
+	end
+	return tool
+end
+
+local function reconcile(player, state)
+	if states[player] ~= state then return end
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not backpack or not humanoid or humanoid.Health <= 0 then return end
+	for uid, entry in pairs(state.entries) do
+		if entry.record.Parent ~= state.inventory then
+			if entry.live then entry.live:Destroy() end
+			entry.template:Destroy()
+			state.entries[uid] = nil
+		else
+			-- Equip moves this same instance between Backpack and Character.
+			if not entry.live or (entry.live.Parent ~= backpack and entry.live.Parent ~= character) then
+				if entry.live then entry.live:Destroy() end
+				entry.live = entry.template:Clone()
+				entry.live.Parent = backpack
+			end
+		end
+	end
+end
+
+function Service.StartPlayer(player, inventory)
+	if states[player] then return states[player] end
+	local state = { inventory = inventory, entries = {}, connections = {} }
+	states[player] = state
+	table.insert(state.connections, player.CharacterAdded:Connect(function(character)
+		task.spawn(function()
+			character:WaitForChild("Humanoid", 10)
+			player:WaitForChild("Backpack", 10)
+			if player.Character == character then reconcile(player, state) end
+		end)
+	end))
+	table.insert(state.connections, player.ChildAdded:Connect(function(child)
+		if child:IsA("Backpack") then task.defer(reconcile, player, state) end
+	end))
+	table.insert(state.connections, inventory.ChildRemoved:Connect(function()
+		-- A future placement service can consume a record and its Tool together.
+		for uid, entry in pairs(state.entries) do
+			if entry.record.Parent ~= inventory then
+				if entry.live then entry.live:Destroy() end
+				entry.template:Destroy()
+				state.entries[uid] = nil
+			end
+		end
+	end))
+	return state
+end
+
+function Service.Deposit(player, egg, inventory)
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not backpack or not humanoid or humanoid.Health <= 0 then return false end
+	for _, field in ipairs(fields) do
+		local value = egg:GetAttribute(field)
+		if field == "Scale" then
+			if type(value) ~= "number" or value ~= value or value <= 0 or value == math.huge then return false end
+		elseif type(value) ~= "string" or value == "" then return false end
+	end
+	local uid = egg:GetAttribute("UID")
+	local state = Service.StartPlayer(player, inventory)
+	-- No yielding between duplicate check and commit.
+	for _, record in ipairs(inventory:GetChildren()) do
+		if record:GetAttribute("UID") == uid then return false end
+	end
+	if state.entries[uid] then return false end
+	local ok, template = pcall(makeTool, player, egg)
+	if not ok then warn("[EggInventoryService] Tool preparation failed: " .. tostring(template)); return false end
+	local record = Instance.new("Folder")
+	record.Name = uid
+	for _, field in ipairs(fields) do record:SetAttribute(field, egg:GetAttribute(field)) end
+	record:SetAttribute("OwnerUserId", player.UserId)
+	local live = template:Clone()
+	state.entries[uid] = { record = record, template = template, live = live }
+	record.Parent = inventory
+	live.Parent = backpack
+	return true
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	local state = states[player]
+	if not state then return end
+	states[player] = nil
+	for _, connection in ipairs(state.connections) do connection:Disconnect() end
+	for _, entry in pairs(state.entries) do
+		entry.template:Destroy()
+		if entry.live then entry.live:Destroy() end
+	end
+end)
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="16">
+        <Properties>
+          <string name="Name">EggSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[-- ServerScriptService.Server.EggSystem
+-- Faza 4
+--
+-- Zadržava:
+-- pickup
+-- carry
+-- death drop
+-- lobby deposit
+-- Run UI
+-- 8s respawn
+-- PlayerRemoving cleanup
+--
+-- Dodaje:
+-- biome egg pools
+-- različite egg modele
+-- stabilni EggType
+-- kompletan metadata set
+-- server pickup validaciju
+-- legacy BasicEgg fallback
+
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
+
+local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local HttpService = game:GetService("HttpService")
+local GuardianHitService = require(script.Parent:WaitForChild("GuardianHitService"))
+local EggInventoryService = require(script.Parent:WaitForChild("EggInventoryService"))
+
+--------------------------------------------------
+-- RUN UI EVENT
+--------------------------------------------------
+-- Kreiramo ga pre require-ova da RunUI ne visi
+-- čak i ako neki ModuleScript ima problem.
+
+local runUIEvent =
+	ReplicatedStorage:FindFirstChild("RunUIEvent")
+
+if not runUIEvent then
+	runUIEvent = Instance.new("RemoteEvent")
+	runUIEvent.Name = "RunUIEvent"
+	runUIEvent.Parent = ReplicatedStorage
+end
+
+--------------------------------------------------
+-- MODULES
+--------------------------------------------------
+
+local modulesFolder =
+	ReplicatedStorage:FindFirstChild("Modules")
+
+if not modulesFolder then
+	error(
+		"[EggSystem] ReplicatedStorage.Modules ne postoji."
+	)
+end
+
+print("[EggSystem] Modules children:")
+
+for _, child in ipairs(
+	modulesFolder:GetChildren()
+	) do
+	print(
+		" -",
+		child.Name,
+		child.ClassName
+	)
+end
+
+local eggConfigModule =
+	modulesFolder:FindFirstChild("EggConfig")
+
+if not eggConfigModule then
+	error(
+		"[EggSystem] EggConfig nije pronađen u ReplicatedStorage.Modules."
+	)
+end
+
+if not eggConfigModule:IsA("ModuleScript") then
+	error(
+		"[EggSystem] EggConfig postoji, ali nije ModuleScript."
+	)
+end
+
+local eggRollerModule =
+	modulesFolder:FindFirstChild("EggRoller")
+
+if not eggRollerModule then
+	error(
+		"[EggSystem] EggRoller nije pronađen u ReplicatedStorage.Modules."
+	)
+end
+
+if not eggRollerModule:IsA("ModuleScript") then
+	error(
+		"[EggSystem] EggRoller postoji, ali nije ModuleScript."
+	)
+end
+
+local EggConfig =
+	require(eggConfigModule :: ModuleScript)
+
+local EggRoller =
+	require(eggRollerModule :: ModuleScript)
+
+local sizeConfigModule =
+	modulesFolder:FindFirstChild("SizeConfig")
+
+if not sizeConfigModule then
+	error("[EggSystem] SizeConfig nije pronađen u ReplicatedStorage.Modules.")
+end
+
+if not sizeConfigModule:IsA("ModuleScript") then
+	error("[EggSystem] SizeConfig postoji, ali nije ModuleScript.")
+end
+
+local SizeConfig =
+	require(sizeConfigModule :: ModuleScript)
+
+--------------------------------------------------
+-- REFERENCES
+--------------------------------------------------
+
+local eggModelsFolder =
+	ServerStorage:WaitForChild("EggModels")
+
+-- GuardianService može samo da zatraži drop; EggSystem ostaje vlasnik carry stanja i fizike.
+local signals = ServerScriptService:FindFirstChild("GameSignals")
+if not signals then
+	signals = Instance.new("Folder")
+	signals.Name = "GameSignals"
+	signals.Parent = ServerScriptService
+end
+
+local guardianForceDrop = signals:FindFirstChild("GuardianForceDrop")
+if not guardianForceDrop then
+	guardianForceDrop = Instance.new("BindableEvent")
+	guardianForceDrop.Name = "GuardianForceDrop"
+	guardianForceDrop.Parent = signals
+end
+
+if not guardianForceDrop:IsA("BindableEvent") then
+	error("[EggSystem] GameSignals.GuardianForceDrop mora biti BindableEvent.")
+end
+
+local spawnFolder =
+	workspace:WaitForChild("EggSpawnPoints")
+
+local lobbyZone =
+	workspace:WaitForChild("LobbyDepositZone")
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+
+local RESPAWN_TIME = 8
+
+local PROMPT_HOLD_TIME = 1.2
+local PROMPT_DISTANCE = 10
+
+-- Malo tolerancije iznad prompt distance-a.
+local SERVER_PICKUP_DISTANCE =
+	PROMPT_DISTANCE + 2
+
+local HEAD_OFFSET = 1.2
+
+--------------------------------------------------
+-- RANDOM
+--------------------------------------------------
+
+local randomObject = Random.new()
+
+--------------------------------------------------
+-- RUNTIME DATA
+--------------------------------------------------
+
+-- [Player] = egg Model
+local carriedEggs = {}
+
+-- [spawnPart] = egg Model
+local activeSpawnEggs = {}
+
+-- [egg Model] = original spawn Part
+local eggOriginSpawn = {}
+
+-- Deposit debounce
+local depositCooldown = {}
+
+-- Spawn point imena koja nisu jedinstvena
+local duplicateSpawnNames = {}
+
+--------------------------------------------------
+-- SPAWN NAME VALIDATION
+--------------------------------------------------
+
+local function scanSpawnPointNames()
+	local seen = {}
+
+	for _, object in ipairs(
+		spawnFolder:GetChildren()
+		) do
+		if object:IsA("BasePart") then
+			if seen[object.Name] then
+				duplicateSpawnNames[object.Name] =
+					true
+			else
+				seen[object.Name] = object
+			end
+		end
+	end
+
+	for duplicateName in pairs(
+		duplicateSpawnNames
+		) do
+		warn(
+			string.format(
+				"[EggSystem] DUPLICATE SpawnPoint name '%s'. SpawnPoint imena moraju biti jedinstvena. Spawnovi sa ovim imenom će biti preskočeni.",
+				duplicateName
+			)
+		)
+	end
+end
+
+--------------------------------------------------
+-- INVENTORY
+--------------------------------------------------
+
+local function getOrCreateInventory(player)
+	local existing =
+		player:FindFirstChild("EggInventory")
+
+	if existing
+		and existing:IsA("Folder") then
+
+		return existing
+	end
+
+	if existing then
+		warn(
+			string.format(
+				"[EggSystem] %s već ima EggInventory koji nije Folder.",
+				player.Name
+			)
+		)
+
+		return nil
+	end
+
+	local inventory = Instance.new("Folder")
+	inventory.Name = "EggInventory"
+	inventory.Parent = player
+
+	return inventory
+end
+
+local function addEggToInventory(player, egg)
+	local inventory = getOrCreateInventory(player)
+	if not inventory then return false end
+	return EggInventoryService.Deposit(player, egg, inventory)
+end
+
+--------------------------------------------------
+-- MODEL PHYSICS
+--------------------------------------------------
+
+local function prepareEggModel(egg)
+	if not egg:IsA("Model") then
+		warn(
+			"[EggSystem] Egg template nije Model."
+		)
+
+		return false
+	end
+
+	if not egg.PrimaryPart then
+		warn(
+			string.format(
+				"[EggSystem] Egg model '%s' nema PrimaryPart.",
+				egg.Name
+			)
+		)
+
+		return false
+	end
+
+	local foundPart = false
+
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart") then
+			foundPart = true
+
+			object.Anchored = true
+			object.CanCollide = true
+			object.CanTouch = true
+			object.CanQuery = true
+			object.Massless = false
+		end
+	end
+
+	if not foundPart then
+		warn(
+			string.format(
+				"[EggSystem] Egg model '%s' nema nijedan BasePart.",
+				egg.Name
+			)
+		)
+
+		return false
+	end
+
+	return true
+end
+
+local function setEggPhysicsForCarry(egg)
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart") then
+			object.Anchored = false
+			object.CanCollide = false
+			object.CanTouch = false
+			object.CanQuery = true
+			object.Massless = true
+		end
+	end
+end
+
+local function setEggPhysicsForDrop(egg)
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart") then
+			object.Anchored = false
+			object.CanCollide = true
+			object.CanTouch = true
+			object.CanQuery = true
+			object.Massless = false
+		end
+	end
+end
+
+--------------------------------------------------
+-- INTERNAL WELDS
+--------------------------------------------------
+
+local function weldEggModel(egg)
+	local primary = egg.PrimaryPart
+
+	if not primary then
+		return
+	end
+
+	for _, object in ipairs(
+		egg:GetDescendants()
+		) do
+		if object:IsA("BasePart")
+			and object ~= primary then
+
+			local existing =
+				object:FindFirstChild(
+					"EggInternalWeld"
+				)
+
+			if not existing then
+				local weld =
+					Instance.new(
+						"WeldConstraint"
+					)
+
+				weld.Name =
+					"EggInternalWeld"
+
+				weld.Part0 = primary
+				weld.Part1 = object
+
+				weld.Parent = object
+			end
+		end
+	end
+end
+
+--------------------------------------------------
+-- POSITION ON SPAWN
+--------------------------------------------------
+
+local function positionEggOnSpawn(
+	egg,
+	spawnPart
+)
+	local baseCFrame =
+		CFrame.new(
+			spawnPart.Position
+		)
+		* CFrame.Angles(
+			0,
+			math.rad(
+				spawnPart.Orientation.Y
+			),
+			0
+		)
+
+	egg:PivotTo(baseCFrame)
+
+	local boxCFrame, boxSize =
+		egg:GetBoundingBox()
+
+	local eggBottomY =
+		boxCFrame.Position.Y
+	- (boxSize.Y / 2)
+
+	local spawnTopY =
+		spawnPart.Position.Y
+		+ (spawnPart.Size.Y / 2)
+
+	local yCorrection =
+		spawnTopY - eggBottomY
+
+	egg:PivotTo(
+		egg:GetPivot()
+			+ Vector3.new(
+				0,
+				yCorrection,
+				0
+			)
+	)
+end
+
+--------------------------------------------------
+-- POSITION ABOVE HEAD
+--------------------------------------------------
+
+local function positionEggAboveHead(
+	egg,
+	head
+)
+	egg:PivotTo(
+		CFrame.new(head.Position)
+			* head.CFrame.Rotation
+	)
+
+	local boxCFrame, boxSize =
+		egg:GetBoundingBox()
+
+	local eggBottomY =
+		boxCFrame.Position.Y
+	- (boxSize.Y / 2)
+
+	local desiredBottomY =
+		head.Position.Y
+		+ (head.Size.Y / 2)
+		+ HEAD_OFFSET
+
+	local yCorrection =
+		desiredBottomY - eggBottomY
+
+	egg:PivotTo(
+		egg:GetPivot()
+			+ Vector3.new(
+				0,
+				yCorrection,
+				0
+			)
+	)
+end
+
+--------------------------------------------------
+-- PROMPT
+--------------------------------------------------
+
+local pickupEgg
+
+local function createPrompt(egg)
+	local root = egg.PrimaryPart
+
+	if not root then
+		return nil
+	end
+
+	local existing =
+		root:FindFirstChild("PickupPrompt")
+
+	if existing then
+		existing:Destroy()
+	end
+
+	local prompt =
+		Instance.new("ProximityPrompt")
+
+	prompt.Name = "PickupPrompt"
+	prompt.ActionText = "Pick Up"
+
+	local sizeName =
+		egg:GetAttribute("Size")
+		or "Unknown"
+
+	local eggName =
+		egg:GetAttribute("EggName")
+		or "Egg"
+
+	prompt.ObjectText =
+		string.format(
+			"%s %s",
+			tostring(sizeName),
+			tostring(eggName)
+		)
+
+	prompt.KeyboardKeyCode =
+		Enum.KeyCode.E
+
+	prompt.HoldDuration =
+		PROMPT_HOLD_TIME
+
+	prompt.MaxActivationDistance =
+		PROMPT_DISTANCE
+
+	prompt.RequiresLineOfSight = false
+
+	prompt.Parent = root
+
+	prompt.Triggered:Connect(
+		function(player)
+			pickupEgg(
+				player,
+				egg
+			)
+		end
+	)
+
+	return prompt
+end
+
+--------------------------------------------------
+-- PICKUP VALIDATION
+--------------------------------------------------
+
+local function validatePickup(
+	player,
+	egg
+)
+	if not player
+		or not player:IsA("Player") then
+
+		return false
+	end
+
+	if carriedEggs[player] then
+		return false
+	end
+
+	if not egg
+		or not egg.Parent
+		or not egg.PrimaryPart then
+
+		return false
+	end
+
+	if egg:GetAttribute("Carried") == true then
+		return false
+	end
+
+	local character =
+		player.Character
+
+	if not character or character:GetAttribute("GuardianRagdoll") == true then
+		return false
+	end
+
+	local humanoid =
+		character:
+		FindFirstChildOfClass(
+			"Humanoid"
+		)
+
+	local root =
+		character:
+		FindFirstChild(
+			"HumanoidRootPart"
+		)
+
+	local head =
+		character:
+		FindFirstChild(
+			"Head"
+		)
+
+	if not humanoid
+		or humanoid.Health <= 0
+		or not root
+		or not head then
+
+		return false
+	end
+
+	local distance =
+		(
+			root.Position
+			- egg.PrimaryPart.Position
+		).Magnitude
+
+	if distance > SERVER_PICKUP_DISTANCE then
+		warn(
+			string.format(
+				"[EggSystem] Pickup odbijen za %s: distance %.2f > %.2f",
+				player.Name,
+				distance,
+				SERVER_PICKUP_DISTANCE
+			)
+		)
+
+		return false
+	end
+
+	return true,
+		character,
+		humanoid,
+		root,
+		head
+end
+
+local function getCarryMovementPenalty(egg)
+	local penalty = SizeConfig.GetCarryMovementPenalty(egg:GetAttribute("Size"))
+
+	if type(penalty) ~= "number" then
+		warn(string.format(
+			"[EggSystem] Egg UID=%s ima nevalidan Size '%s'; carry penalty nije primenjen.",
+			tostring(egg:GetAttribute("UID")),
+			tostring(egg:GetAttribute("Size"))
+		))
+		return nil
+	end
+
+	return penalty
+end
+
+local function clearCarryMovementPenalty(player)
+	player:SetAttribute("CarryMovementPenalty", 0)
+end
+
+--------------------------------------------------
+-- PICKUP
+--------------------------------------------------
+
+pickupEgg = function(player, egg)
+	local valid,
+		_character,
+		_humanoid,
+		_root,
+		head =
+		validatePickup(
+			player,
+			egg
+		)
+
+	if not valid then
+		return
+	end
+
+	local carryPenalty = getCarryMovementPenalty(egg)
+
+	if carryPenalty == nil then
+		return
+	end
+
+	--------------------------------------------------
+	-- LOCK
+	--------------------------------------------------
+
+	egg:SetAttribute(
+		"Carried",
+		true
+	)
+
+	egg:SetAttribute(
+		"CarrierUserId",
+		player.UserId
+	)
+
+	carriedEggs[player] = egg
+	player:SetAttribute("CarryMovementPenalty", carryPenalty)
+
+	--------------------------------------------------
+	-- REMOVE PROMPT
+	--------------------------------------------------
+
+	local prompt =
+		egg.PrimaryPart:
+		FindFirstChild(
+			"PickupPrompt"
+		)
+
+	if prompt then
+		prompt:Destroy()
+	end
+
+	--------------------------------------------------
+	-- CARRY
+	--------------------------------------------------
+
+	weldEggModel(egg)
+	setEggPhysicsForCarry(egg)
+
+	positionEggAboveHead(
+		egg,
+		head
+	)
+
+	local carryWeld =
+		Instance.new("WeldConstraint")
+
+	carryWeld.Name = "CarryWeld"
+	carryWeld.Part0 = head
+	carryWeld.Part1 = egg.PrimaryPart
+	carryWeld.Parent = egg.PrimaryPart
+
+	runUIEvent:FireClient(
+		player,
+		true
+	)
+
+	print(
+		string.format(
+			"[EggSystem] %s picked up %s %s | UID=%s",
+			player.Name,
+			tostring(
+				egg:GetAttribute("Size")
+			),
+			tostring(
+				egg:GetAttribute("EggName")
+			),
+			tostring(
+				egg:GetAttribute("UID")
+			)
+		)
+	)
+end
+
+--------------------------------------------------
+-- DROP
+--------------------------------------------------
+
+local function dropEgg(player)
+	local egg =
+		carriedEggs[player]
+
+	if not egg
+		or not egg.Parent then
+
+		carriedEggs[player] = nil
+		clearCarryMovementPenalty(player)
+
+		runUIEvent:FireClient(
+			player,
+			false
+		)
+
+		return
+	end
+
+	local primary =
+		egg.PrimaryPart
+
+	if not primary then
+		carriedEggs[player] = nil
+		clearCarryMovementPenalty(player)
+
+		runUIEvent:FireClient(
+			player,
+			false
+		)
+
+		return
+	end
+
+	local character =
+		player.Character
+
+	local characterRoot =
+		character
+		and character:
+		FindFirstChild(
+			"HumanoidRootPart"
+		)
+
+	local carryWeld =
+		primary:
+		FindFirstChild(
+			"CarryWeld"
+		)
+
+	if carryWeld then
+		carryWeld:Destroy()
+	end
+
+	egg:SetAttribute(
+		"Carried",
+		false
+	)
+
+	egg:SetAttribute(
+		"CarrierUserId",
+		0
+	)
+
+	carriedEggs[player] = nil
+	clearCarryMovementPenalty(player)
+
+	runUIEvent:FireClient(
+		player,
+		false
+	)
+
+	setEggPhysicsForDrop(egg)
+
+	if characterRoot then
+		egg:PivotTo(
+			characterRoot.CFrame
+				* CFrame.new(
+					0,
+					2,
+					-4
+				)
+		)
+	end
+
+	createPrompt(egg)
+
+	print(
+		string.format(
+			"[EggSystem] %s dropped %s | UID=%s",
+			player.Name,
+			tostring(
+				egg:GetAttribute("EggName")
+			),
+			tostring(
+				egg:GetAttribute("UID")
+			)
+		)
+	)
+end
+
+guardianForceDrop.Event:Connect(function(player, expectedEgg, guardianPosition)
+	if typeof(player) == "Instance" and player:IsA("Player")
+		and expectedEgg ~= nil and carriedEggs[player] == expectedEgg then
+		dropEgg(player)
+		if typeof(guardianPosition) == "Vector3" then
+			GuardianHitService.Hit(player, guardianPosition, expectedEgg)
+		end
+	end
+end)
+
+--------------------------------------------------
+-- RESOLVE EGG DEFINITION
+--------------------------------------------------
+
+local function getEggDefinitionForSpawn(
+	spawnPart
+)
+	local biomeAttribute =
+		spawnPart:GetAttribute("Biome")
+
+	--------------------------------------------------
+	-- LEGACY
+	--------------------------------------------------
+
+	if biomeAttribute == nil then
+		return
+			EggConfig.LegacyBasicEgg,
+			EggConfig.LegacyBasicEgg.Biome,
+			nil
+	end
+
+	--------------------------------------------------
+	-- ATTRIBUTE EXISTS BUT INVALID
+	--------------------------------------------------
+
+	if type(biomeAttribute) ~= "string"
+		or biomeAttribute == "" then
+
+		return nil,
+			nil,
+			string.format(
+				"SpawnPoint '%s' ima Biome Attribute, ali nije validan non-empty String.",
+				spawnPart.Name
+			)
+	end
+
+	local biomeKey = tostring(biomeAttribute)
+
+local definition, rollError =
+	EggRoller.RollEggForBiome(
+		biomeKey,
+		randomObject
+	)
+
+if not definition then
+	local errorMessage =
+		tostring(
+			rollError
+				or "nije moguće izabrati egg"
+		)
+
+	return nil,
+		nil,
+		string.format(
+			"SpawnPoint '%s' Biome='%s': %s",
+			tostring(spawnPart.Name),
+			biomeKey,
+			errorMessage
+		)
+end
+
+return definition,
+	biomeKey,
+	nil
+end
+--------------------------------------------------
+-- APPLY WORLD ATTRIBUTES
+--------------------------------------------------
+
+local function applyWorldAttributes(
+	egg,
+	definition,
+	biomeName,
+	sizeInfo,
+	spawnPart
+)
+	egg:SetAttribute(
+		"UID",
+		HttpService:GenerateGUID(false)
+	)
+
+	egg:SetAttribute(
+		"EggName",
+		definition.EggName
+	)
+
+	egg:SetAttribute(
+		"EggType",
+		definition.EggType
+	)
+
+	egg:SetAttribute(
+		"Biome",
+		biomeName
+	)
+
+	egg:SetAttribute(
+		"Rarity",
+		definition.Rarity
+	)
+
+	egg:SetAttribute(
+		"Size",
+		sizeInfo.Name
+	)
+
+	egg:SetAttribute(
+		"Scale",
+		sizeInfo.Scale
+	)
+
+	egg:SetAttribute(
+		"SpawnPoint",
+		spawnPart.Name
+	)
+
+	egg:SetAttribute(
+		"Carried",
+		false
+	)
+
+	egg:SetAttribute(
+		"CarrierUserId",
+		0
+	)
+end
+
+--------------------------------------------------
+-- SPAWN EGG
+--------------------------------------------------
+
+local function spawnEgg(spawnPart)
+	if not spawnPart
+		or not spawnPart.Parent
+		or not spawnPart:IsA("BasePart") then
+
+		return
+	end
+
+	if duplicateSpawnNames[
+		spawnPart.Name
+		] then
+
+		warn(
+			string.format(
+				"[EggSystem] Preskačem SpawnPoint '%s' jer ime nije jedinstveno.",
+				spawnPart.Name
+			)
+		)
+
+		return
+	end
+
+	local active =
+		activeSpawnEggs[spawnPart]
+
+	if active
+		and active.Parent then
+
+		return
+	end
+
+	--------------------------------------------------
+	-- CHOOSE EGG
+	--------------------------------------------------
+
+	local definition,
+		biomeName,
+		definitionError =
+		getEggDefinitionForSpawn(
+			spawnPart
+		)
+
+	if not definition then
+		warn(
+			"[EggSystem] "
+				.. (
+					definitionError
+					or "Egg definition nije pronađen."
+				)
+				.. " Spawn preskočen."
+		)
+
+		return
+	end
+
+	--------------------------------------------------
+	-- MODEL
+	--------------------------------------------------
+
+	local template =
+		eggModelsFolder:
+		FindFirstChild(
+			definition.ModelName
+		)
+
+	if not template
+		or not template:IsA("Model") then
+
+		warn(
+			string.format(
+				"[EggSystem] SpawnPoint '%s': model '%s' za EggType '%s' ne postoji kao Model u ServerStorage.EggModels. Spawn preskočen.",
+				spawnPart.Name,
+				tostring(
+					definition.ModelName
+				),
+				tostring(
+					definition.EggType
+				)
+			)
+		)
+
+		return
+	end
+
+	--------------------------------------------------
+	-- SIZE
+	--------------------------------------------------
+
+	local sizeInfo, sizeError =
+		EggRoller.RollSize(
+			randomObject
+		)
+
+	if not sizeInfo then
+		warn(
+			string.format(
+				"[EggSystem] SpawnPoint '%s': size roll failed: %s. Spawn preskočen.",
+				spawnPart.Name,
+				tostring(sizeError)
+			)
+		)
+
+		return
+	end
+
+	--------------------------------------------------
+	-- CLONE
+	--------------------------------------------------
+
+	local egg =
+		template:Clone()
+
+	egg.Name = "WorldEgg"
+
+	applyWorldAttributes(
+		egg,
+		definition,
+		biomeName,
+		sizeInfo,
+		spawnPart
+	)
+
+	egg:ScaleTo(
+		sizeInfo.Scale
+	)
+
+	egg.Parent = workspace
+
+	if not prepareEggModel(egg) then
+		egg:Destroy()
+		return
+	end
+
+	positionEggOnSpawn(
+		egg,
+		spawnPart
+	)
+
+	activeSpawnEggs[spawnPart] = egg
+	eggOriginSpawn[egg] = spawnPart
+
+	createPrompt(egg)
+
+	print(
+		string.format(
+			"[EggSystem] Spawned %s %s | EggType=%s | Biome=%s | Rarity=%s | SpawnPoint=%s | UID=%s",
+			sizeInfo.Name,
+			definition.EggName,
+			definition.EggType,
+			biomeName,
+			definition.Rarity,
+			spawnPart.Name,
+			tostring(
+				egg:GetAttribute("UID")
+			)
+		)
+	)
+end
+
+--------------------------------------------------
+-- RESPAWN
+--------------------------------------------------
+
+local function scheduleRespawn(spawnPart)
+	if not spawnPart
+		or not spawnPart.Parent then
+
+		return
+	end
+
+	activeSpawnEggs[spawnPart] = nil
+
+	task.delay(
+		RESPAWN_TIME,
+		function()
+			if not spawnPart.Parent then
+				return
+			end
+
+			spawnEgg(spawnPart)
+		end
+	)
+end
+
+--------------------------------------------------
+-- ORIGIN SPAWN
+--------------------------------------------------
+
+local function getOriginSpawn(egg)
+	local runtimeSpawn =
+		eggOriginSpawn[egg]
+
+	if runtimeSpawn
+		and runtimeSpawn.Parent then
+
+		return runtimeSpawn
+	end
+
+	local spawnPointName =
+		egg:GetAttribute("SpawnPoint")
+
+	if type(spawnPointName) ~= "string"
+		or spawnPointName == "" then
+
+		return nil
+	end
+
+	if duplicateSpawnNames[
+		spawnPointName
+		] then
+
+		return nil
+	end
+
+	local spawnPart =
+		spawnFolder:
+		FindFirstChild(
+			spawnPointName
+		)
+
+	if spawnPart
+		and spawnPart:IsA("BasePart") then
+
+		return spawnPart
+	end
+
+	return nil
+end
+
+--------------------------------------------------
+-- DEPOSIT
+--------------------------------------------------
+
+local function depositEgg(player)
+	if depositCooldown[player] then
+		return
+	end
+
+	local egg =
+		carriedEggs[player]
+
+	if not egg
+		or not egg.Parent then
+
+		return
+	end
+
+	depositCooldown[player] = true
+
+	if egg:GetAttribute(
+		"CarrierUserId"
+		) ~= player.UserId then
+
+		depositCooldown[player] = nil
+		return
+	end
+
+	if egg:GetAttribute(
+		"Carried"
+		) ~= true then
+
+		depositCooldown[player] = nil
+		return
+	end
+
+	local spawnPart =
+		getOriginSpawn(egg)
+
+	local added =
+		addEggToInventory(
+			player,
+			egg
+		)
+
+	if not added then
+		depositCooldown[player] = nil
+
+		warn(
+			string.format(
+				"[EggSystem] Deposit za %s nije uspeo; world egg nije uništen.",
+				player.Name
+			)
+		)
+
+		return
+	end
+
+	carriedEggs[player] = nil
+	clearCarryMovementPenalty(player)
+
+	runUIEvent:FireClient(
+		player,
+		false
+	)
+
+	eggOriginSpawn[egg] = nil
+
+	egg:Destroy()
+
+	if spawnPart then
+		scheduleRespawn(
+			spawnPart
+		)
+	else
+		warn(
+			string.format(
+				"[EggSystem] Deposit od %s uspeo, ali original SpawnPoint nije pronađen. Respawn nije zakazan.",
+				player.Name
+			)
+		)
+	end
+
+	task.delay(
+		0.5,
+		function()
+			depositCooldown[player] = nil
+		end
+	)
+end
+
+--------------------------------------------------
+-- LOBBY ZONE
+--------------------------------------------------
+
+lobbyZone.Touched:Connect(
+	function(hit)
+		local character =
+			hit:
+			FindFirstAncestorOfClass(
+				"Model"
+			)
+
+		if not character then
+			return
+		end
+
+		local humanoid =
+			character:
+			FindFirstChildOfClass(
+				"Humanoid"
+			)
+
+		if not humanoid
+			or humanoid.Health <= 0 then
+
+			return
+		end
+
+		local player =
+			Players:
+			GetPlayerFromCharacter(
+				character
+			)
+
+		if not player then
+			return
+		end
+
+		if carriedEggs[player] then
+			depositEgg(player)
+		end
+	end
+)
+
+--------------------------------------------------
+-- CHARACTER
+--------------------------------------------------
+
+local function setupCharacter(
+	player,
+	character
+)
+	local humanoid =
+		character:
+		WaitForChild(
+			"Humanoid"
+		)
+
+	humanoid.Died:Connect(
+		function()
+			if carriedEggs[player] then
+				dropEgg(player)
+			else
+				clearCarryMovementPenalty(player)
+			end
+		end
+	)
+end
+
+--------------------------------------------------
+-- PLAYER
+--------------------------------------------------
+
+local function setupPlayer(player)
+	getOrCreateInventory(player)
+
+	if player.Character then
+		setupCharacter(
+			player,
+			player.Character
+		)
+	end
+
+	player.CharacterAdded:Connect(
+		function(character)
+			setupCharacter(
+				player,
+				character
+			)
+		end
+	)
+end
+
+Players.PlayerAdded:Connect(
+	setupPlayer
+)
+
+for _, player in ipairs(
+	Players:GetPlayers()
+	) do
+	setupPlayer(player)
+end
+
+--------------------------------------------------
+-- PLAYER LEAVES
+--------------------------------------------------
+
+Players.PlayerRemoving:Connect(
+	function(player)
+		local egg =
+			carriedEggs[player]
+
+		if egg
+			and egg.Parent then
+
+			local spawnPart =
+				getOriginSpawn(egg)
+
+			eggOriginSpawn[egg] = nil
+
+			egg:Destroy()
+
+			carriedEggs[player] = nil
+
+			if spawnPart then
+				scheduleRespawn(
+					spawnPart
+				)
+			else
+				warn(
+					string.format(
+						"[EggSystem] %s je izašao noseći egg, ali original SpawnPoint nije pronađen.",
+						player.Name
+					)
+				)
+			end
+		end
+
+		carriedEggs[player] = nil
+		clearCarryMovementPenalty(player)
+		depositCooldown[player] = nil
+	end
+)
+
+--------------------------------------------------
+-- INITIAL SPAWNS
+--------------------------------------------------
+
+scanSpawnPointNames()
+
+for _, spawnPart in ipairs(
+	spawnFolder:GetChildren()
+	) do
+	if spawnPart:IsA("BasePart") then
+		spawnEgg(spawnPart)
+	end
+end
+
+print(
+	"[EggSystem] Phase 4 egg system loaded."
+)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="17">
+        <Properties>
+          <string name="Name">GuardianHitService</string>
+          <string name="Source"><![CDATA[-- Server-only temporary ragdoll. Original joints and movement settings are restored.
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("GuardianConfig"))
+local HitService = {}
+local active = {}
+local RunService = game:GetService("RunService")
+
+function HitService.Hit(player, origin, droppedEgg)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or humanoid.Health <= 0 or not root or active[character] then return end
+	active[character] = true
+	local oldRotate, oldStand, oldNeck = humanoid.AutoRotate, humanoid.PlatformStand, humanoid.RequiresNeck
+	local oldGettingUp = humanoid:GetStateEnabled(Enum.HumanoidStateType.GettingUp)
+	local motors, parts, temporary, colliders = {}, {}, {}, {}
+	local function keep(instance)
+		table.insert(temporary, instance)
+		return instance
+	end
+	-- Disable the neck death check before releasing any joints (R6 and R15).
+	humanoid.RequiresNeck = false
+	humanoid.AutoRotate = false
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+	humanoid.PlatformStand = true
+	for _, part in ipairs(character:GetChildren()) do
+		if part:IsA("BasePart") then
+			parts[part] = part.CanCollide
+			part.CanCollide = false
+			if part ~= root then
+				-- Humanoid may overwrite limb collisions. Separate welded colliders
+				-- keep the relaxed body resting on the floor in Physics state.
+				local collider = keep(Instance.new("Part"))
+				collider.Name = "GuardianRagdollCollider"
+				collider.Size = part.Size * 0.75
+				collider.Transparency = 1
+				collider.Massless = true
+				collider.CanCollide = true
+				collider.CanTouch = false
+				collider.CanQuery = false
+				collider.CFrame = part.CFrame
+				collider.Parent = character
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0, weld.Part1 = part, collider
+				weld.Parent = collider
+				table.insert(colliders, collider)
+			end
+		end
+	end
+	for _, motor in ipairs(character:GetDescendants()) do
+		-- AvatarJointUpgrade uses AnimationConstraint instead of Motor6D.
+		-- Part0/Part1/C1 are read-only compatibility aliases on that class.
+		-- Temporarily replace either joint with our socket, leaving the rig's
+		-- original attachments and animation settings untouched.
+		if (motor:IsA("Motor6D") or motor:IsA("AnimationConstraint"))
+			and motor.Enabled and motor.Part0 and motor.Part1
+			and parts[motor.Part0] ~= nil and parts[motor.Part1] ~= nil
+			and motor.Part0 ~= root and motor.Part1 ~= root then
+			local a = keep(Instance.new("Attachment"))
+			-- Both attachment pivots must coincide in the current animated pose.
+			a.CFrame = motor.Part0.CFrame:ToObjectSpace(motor.Part1.CFrame * motor.C1)
+			a.Parent = motor.Part0
+			local b = keep(Instance.new("Attachment"))
+			b.CFrame = motor.C1
+			b.Parent = motor.Part1
+			local socket = keep(Instance.new("BallSocketConstraint"))
+			socket.Attachment0, socket.Attachment1 = a, b
+			socket.LimitsEnabled = true
+			socket.UpperAngle = if motor.Name == "Neck" then 40 else 80
+			socket.TwistLimitsEnabled = true
+			socket.TwistLowerAngle, socket.TwistUpperAngle = -55, 55
+			socket.Parent = motor.Part0
+			table.insert(motors, motor)
+			motor:SetAttribute("GuardianRagdollMotor", true)
+			motor.Enabled = false
+		end
+	end
+	-- Body parts hit the ground but cannot fling one another through self-collisions.
+	local body = {}
+	for part in pairs(parts) do table.insert(body, part) end
+	for _, collider in ipairs(colliders) do table.insert(body, collider) end
+	for i = 1, #body do
+		for j = i + 1, #body do
+			local constraint = keep(Instance.new("NoCollisionConstraint"))
+			constraint.Part0, constraint.Part1 = body[i], body[j]
+			constraint.Parent = root
+		end
+	end
+	-- Drop enables egg collisions before the launch. Ignore only this egg vs
+	-- this character (including accessories and the new ragdoll colliders).
+	-- All constraints are installed before the first physics wait and cleaned
+	-- with the ragdoll; the egg still collides with terrain and other players.
+	if droppedEgg and droppedEgg.Parent then
+		local characterParts = {}
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then table.insert(characterParts, part) end
+		end
+		for _, eggPart in ipairs(droppedEgg:GetDescendants()) do
+			if eggPart:IsA("BasePart") then
+				for _, characterPart in ipairs(characterParts) do
+					local constraint = keep(Instance.new("NoCollisionConstraint"))
+					constraint.Name = "GuardianDroppedEggNoCollision"
+					constraint.Part0, constraint.Part1 = eggPart, characterPart
+					constraint.Parent = root
+				end
+			end
+		end
+	end
+	local away = root.Position - origin
+	away = Vector3.new(away.X, 0, away.Z)
+	if away.Magnitude < 0.01 then away = Vector3.new(0, 0, -1) end
+	local velocity = away.Unit * Config.KnockbackSpeed + Vector3.new(0, Config.KnockbackUpSpeed, 0)
+	character:SetAttribute("GuardianRagdollJointCount", #motors)
+	if #motors == 0 then
+		warn("[GuardianHitService] No enabled body Motor6D/AnimationConstraint joints: " .. character.Name)
+	end
+	character:SetAttribute("GuardianRagdoll", true)
+
+	task.spawn(function()
+		-- Let physics split the disabled motors into separate assemblies first.
+		RunService.Heartbeat:Wait()
+		if character.Parent and player.Character == character and humanoid.Health > 0 and root.Parent then
+			local assemblies = {}
+			for part in pairs(parts) do
+				if part.Parent then
+					local assembly = part.AssemblyRootPart or part
+					if not assemblies[assembly] then
+						assemblies[assembly] = true
+						if assembly:CanSetNetworkOwnership() then assembly:SetNetworkOwner(nil) end
+						assembly:ApplyImpulse((velocity - assembly.AssemblyLinearVelocity) * assembly.AssemblyMass)
+					end
+				end
+			end
+			humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+			root.AssemblyAngularVelocity = Vector3.yAxis:Cross(away.Unit) * 7
+		end
+		local began, grounded = os.clock(), 0
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		local ignored = { character }
+		if droppedEgg and droppedEgg.Parent then table.insert(ignored, droppedEgg) end
+		params.FilterDescendantsInstances = ignored
+		params.RespectCanCollide = true
+		while character.Parent and player.Character == character and humanoid.Health > 0
+			and os.clock() - began < Config.RagdollMaxSeconds do
+			local dt = task.wait(0.1)
+			if not root.Parent then break end
+			local landed = false
+			if os.clock() - began >= Config.RagdollMinSeconds and root.AssemblyLinearVelocity.Magnitude < 12 then
+				for part in pairs(parts) do
+					if part.Parent and part ~= root and workspace:Raycast(part.Position,
+						Vector3.new(0, -(part.Size.Magnitude * 0.5 + 0.35), 0), params) then
+						landed = true
+						break
+					end
+				end
+			end
+			grounded = if landed then grounded + dt else 0
+			if grounded >= Config.RagdollGroundedSeconds then break end
+		end
+		-- Restore this character only; a delayed recovery must never alter a respawn.
+		for _, motor in ipairs(motors) do
+			if motor.Parent then
+				motor.Enabled = true
+				motor:SetAttribute("GuardianRagdollMotor", nil)
+			end
+		end
+		for _, instance in ipairs(temporary) do instance:Destroy() end
+		for part, collide in pairs(parts) do
+			if part.Parent then
+				part.CanCollide = collide
+				part.AssemblyAngularVelocity = Vector3.zero
+				if humanoid.Health > 0 then part.AssemblyLinearVelocity = Vector3.zero end
+			end
+		end
+		if humanoid.Parent then
+			humanoid.RequiresNeck = oldNeck
+			humanoid.AutoRotate = oldRotate
+			humanoid.PlatformStand = oldStand
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, oldGettingUp)
+			if player.Character == character and humanoid.Health > 0 and not oldStand then
+				humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+			end
+		end
+		for part in pairs(parts) do
+			if part.Parent and part:CanSetNetworkOwnership() then part:SetNetworkOwnershipAuto() end
+		end
+		character:SetAttribute("GuardianRagdoll", nil)
+		character:SetAttribute("GuardianRagdollJointCount", nil)
+		active[character] = nil
+	end)
+end
+
+return HitService
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="18">
+        <Properties>
+          <string name="Name">GuardianService</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[--!strict
+-- ServerScriptService.Server.GuardianService | Faza 8
+-- Svako ukradeno jaje dobija nezavisan klon GuardianTemplate-a.
+
+local PathfindingService = game:GetService("PathfindingService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local GuardianConfig = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("GuardianConfig"))
+
+local activeFolder = workspace:FindFirstChild("ActiveGuardians")
+if not activeFolder then
+	activeFolder = Instance.new("Folder")
+	activeFolder.Name = "ActiveGuardians"
+	activeFolder.Parent = workspace
+end
+
+local signals = ServerScriptService:WaitForChild("GameSignals")
+local forceDropEvent = signals:WaitForChild("GuardianForceDrop")
+assert(forceDropEvent:IsA("BindableEvent"), "GameSignals.GuardianForceDrop must be a BindableEvent")
+
+type Chase = { egg: Model, player: Player, guardian: Model, connection: RBXScriptConnection? }
+local activeChases: { [Model]: Chase } = {}
+
+local function isInsidePart(part: BasePart, position: Vector3, padding: number): boolean
+	local point = part.CFrame:PointToObjectSpace(position)
+	local half = part.Size * 0.5 + Vector3.new(padding, padding, padding)
+	return math.abs(point.X) <= half.X and math.abs(point.Y) <= half.Y and math.abs(point.Z) <= half.Z
+end
+
+local function getGuardianTemplate(biomeName: unknown): Model?
+	if type(biomeName) ~= "string" or biomeName == "" then return nil end
+	local biomes = workspace:FindFirstChild("Biomes")
+	local biome = biomes and biomes:FindFirstChild(biomeName)
+	local template = biome and biome:FindFirstChild("GuardianTemplate")
+	return if template and template:IsA("Model") then template else nil
+end
+
+local function getBiomeZone(biomeName: unknown): BasePart?
+	if type(biomeName) ~= "string" or biomeName == "" then return nil end
+	local biomes = workspace:FindFirstChild("Biomes")
+	local biome = biomes and biomes:FindFirstChild(biomeName)
+	local zone = biome and biome:FindFirstChild("BiomeZone")
+	return if zone and zone:IsA("BasePart") then zone else nil
+end
+
+local function makePart(name: string, size: Vector3, color: Color3, offset: Vector3, root: BasePart, model: Model): BasePart
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.Color = color
+	part.Material = Enum.Material.Neon
+	part.CanCollide = false
+	part.Massless = true
+	part.CFrame = root.CFrame * CFrame.new(offset)
+	part.Parent = model
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = part
+	weld.Parent = part
+	return part
+end
+
+local function createFallbackGuardian(zone: BasePart): Model
+	local model = Instance.new("Model")
+	model.Name = "GeneratedGuardian"
+	local raycastParameters = RaycastParams.new()
+	raycastParameters.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParameters.FilterDescendantsInstances = { zone }
+	local rayOrigin = zone.Position + zone.CFrame.UpVector * (zone.Size.Y * 0.5 + 150)
+	local groundHit = workspace:Raycast(rayOrigin, -zone.CFrame.UpVector * 300, raycastParameters)
+	-- Root je 3.5 studa iznad poda da generisane noge ne počinju u zemlji.
+	local spawnPosition = if groundHit then groundHit.Position + Vector3.new(0, 3.5, 0)
+		else zone.Position + zone.CFrame.UpVector * (zone.Size.Y * 0.5 + 3.5)
+	local root = Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = Vector3.new(2, 2, 1)
+	root.Transparency = 1
+	root.CanCollide = true
+	root.Anchored = false
+	root.CFrame = CFrame.new(spawnPosition)
+	root.Parent = model
+	model.PrimaryPart = root
+
+	local bodyColor = Color3.fromRGB(120, 15, 180)
+	makePart("Torso", Vector3.new(2.6, 3, 1.4), bodyColor, Vector3.new(0, 0.4, 0), root, model)
+	makePart("Head", Vector3.new(2, 2, 2), Color3.fromRGB(60, 255, 120), Vector3.new(0, 2.8, 0), root, model)
+	makePart("LeftArm", Vector3.new(0.7, 2.6, 0.7), bodyColor, Vector3.new(-1.7, 0.35, 0), root, model)
+	makePart("RightArm", Vector3.new(0.7, 2.6, 0.7), bodyColor, Vector3.new(1.7, 0.35, 0), root, model)
+	makePart("LeftLeg", Vector3.new(0.8, 2.5, 0.8), bodyColor, Vector3.new(-0.65, -2.2, 0), root, model)
+	makePart("RightLeg", Vector3.new(0.8, 2.5, 0.8), bodyColor, Vector3.new(0.65, -2.2, 0), root, model)
+
+	local humanoid = Instance.new("Humanoid")
+	humanoid.DisplayName = "Guardian"
+	humanoid.HipHeight = 3.5
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	humanoid.Parent = model
+	return model
+end
+
+local function finishChase(egg: Model)
+	local chase = activeChases[egg]
+	if not chase then return end
+	activeChases[egg] = nil
+	if chase.connection then chase.connection:Disconnect() end
+	if chase.guardian.Parent then chase.guardian:Destroy() end
+end
+
+local function isStillCarrying(chase: Chase): boolean
+	return chase.egg.Parent ~= nil and chase.egg:GetAttribute("Carried") == true
+		and chase.egg:GetAttribute("CarrierUserId") == chase.player.UserId
+end
+
+type PathState = { waypoints: { PathWaypoint }, index: number, nextRecompute: number, computing: boolean }
+
+local function horizontalDistance(a: Vector3, b: Vector3): number
+	local delta = a - b
+	return Vector3.new(delta.X, 0, delta.Z).Magnitude
+end
+
+local function moveTowards(humanoid: Humanoid, root: BasePart, destination: Vector3, pathState: PathState, chase: Chase)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local excluded: { Instance } = { chase.guardian, chase.egg }
+	if chase.player.Character then table.insert(excluded, chase.player.Character) end
+	params.FilterDescendantsInstances = excluded
+	params.RespectCanCollide = true
+	local direction = destination - root.Position
+	local side = if direction.Magnitude > 0.01 then direction.Unit:Cross(Vector3.yAxis) * 2 else Vector3.zero
+	-- Check the width of the NPC, not just a single line through its centre.
+	local clear = math.abs(direction.Y) < 3
+	for _, offset in ipairs({ Vector3.zero, side, -side }) do
+		if workspace:Raycast(root.Position + offset, direction, params) then clear = false; break end
+	end
+	-- Do not shortcut across a gap just because there is no wall in sight.
+	if clear then
+		for step = 1, math.max(1, math.ceil(direction.Magnitude / 4)) do
+			local point = root.Position:Lerp(destination, step / math.max(1, math.ceil(direction.Magnitude / 4)))
+			if not workspace:Raycast(point, Vector3.new(0, -8, 0), params) then clear = false; break end
+		end
+	end
+	if clear then
+		humanoid:MoveTo(destination)
+		pathState.waypoints = {}
+		return
+	end
+
+	if not pathState.computing and os.clock() >= pathState.nextRecompute then
+		pathState.computing = true
+		pathState.nextRecompute = os.clock() + GuardianConfig.PathRecomputeSeconds
+		-- ComputeAsync yields; movement and catch/stop checks must keep running.
+		task.spawn(function()
+			local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 7, AgentCanJump = true, WaypointSpacing = 4 })
+			local computed = pcall(function() path:ComputeAsync(root.Position, destination) end)
+			pathState.computing = false
+			if activeChases[chase.egg] ~= chase or not root.Parent then return end
+			if computed and path.Status == Enum.PathStatus.Success then
+				local points = path:GetWaypoints()
+				-- The NPC may have moved while the path was being computed.
+				local index = 2
+				while points[index + 1] do
+					local segment = points[index].Position - points[index - 1].Position
+					local past = root.Position - points[index].Position
+					if Vector3.new(past.X, 0, past.Z):Dot(Vector3.new(segment.X, 0, segment.Z)) < 0 then break end
+					index += 1
+				end
+				pathState.waypoints = points
+				pathState.index = index
+			end
+		end)
+	end
+
+	while pathState.waypoints[pathState.index]
+		and horizontalDistance(root.Position, pathState.waypoints[pathState.index].Position) <= math.max(GuardianConfig.WaypointReachDistance, humanoid.WalkSpeed * GuardianConfig.ChaseTickSeconds) do
+		pathState.index += 1
+	end
+	local waypoint = pathState.waypoints[pathState.index]
+	if waypoint then
+		if waypoint.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
+		humanoid:MoveTo(waypoint.Position)
+	else
+		humanoid:MoveTo(destination)
+	end
+end
+
+local function startChase(egg: Model)
+	if activeChases[egg] or egg:GetAttribute("Carried") ~= true then return end
+	local carrierUserId = egg:GetAttribute("CarrierUserId")
+	local player = if typeof(carrierUserId) == "number" then Players:GetPlayerByUserId(carrierUserId) else nil
+	local template = getGuardianTemplate(egg:GetAttribute("Biome"))
+	local zone = getBiomeZone(egg:GetAttribute("Biome"))
+	if not player or (not template and not zone) then
+		if not template and not zone then warn(string.format("[GuardianService] Biome '%s' nema GuardianTemplate ni BiomeZone; chase preskočen.", tostring(egg:GetAttribute("Biome")))) end
+		return
+	end
+
+	local guardian = if template then template:Clone() else createFallbackGuardian(zone :: BasePart)
+	guardian.Name = "Guardian_" .. tostring(egg:GetAttribute("UID"))
+	guardian.Parent = activeFolder
+	-- Template može ostati usidren u Studio-u kao bezbedan izvor za kloniranje.
+	for _, descendant in ipairs(guardian:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = false
+		end
+	end
+	local humanoid = guardian:FindFirstChildOfClass("Humanoid")
+	local root = guardian:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not root or not root:IsA("BasePart") then
+		warn("[GuardianService] GuardianTemplate mora imati Humanoid i HumanoidRootPart.")
+		guardian:Destroy()
+		return
+	end
+
+	humanoid.WalkSpeed = GuardianConfig.GetWalkSpeed(egg:GetAttribute("Biome"), egg:GetAttribute("Rarity"))
+	-- Keep NPC physics on the server instead of transferring it between nearby players.
+	if root:CanSetNetworkOwnership() then root:SetNetworkOwner(nil) end
+	guardian:SetAttribute("TargetUserId", player.UserId)
+	guardian:SetAttribute("TargetEggUID", tostring(egg:GetAttribute("UID")))
+	guardian:SetAttribute("Biome", egg:GetAttribute("Biome"))
+	local chase: Chase = { egg = egg, player = player, guardian = guardian, connection = nil }
+	activeChases[egg] = chase
+	chase.connection = egg:GetAttributeChangedSignal("Carried"):Connect(function()
+		if egg:GetAttribute("Carried") ~= true then finishChase(egg) end
+	end)
+
+	task.spawn(function()
+		local pathState: PathState = { waypoints = {}, index = 1, nextRecompute = 0, computing = false }
+		while activeChases[egg] == chase do
+			if not isStillCarrying(chase) or not root.Parent or humanoid.Health <= 0 then finishChase(egg); break end
+			local character = player.Character
+			local targetHumanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local targetRoot = character and character:FindFirstChild("HumanoidRootPart")
+			local lobbyZone = workspace:FindFirstChild("LobbyDepositZone")
+			if not targetHumanoid or targetHumanoid.Health <= 0 or not targetRoot or not targetRoot:IsA("BasePart") then finishChase(egg); break end
+			if lobbyZone and lobbyZone:IsA("BasePart") and isInsidePart(lobbyZone, targetRoot.Position, GuardianConfig.SafeZonePadding) then finishChase(egg); break end
+			if (root.Position - targetRoot.Position).Magnitude <= GuardianConfig.CatchDistance then
+				forceDropEvent:Fire(player, egg, root.Position)
+				finishChase(egg)
+				break
+			end
+			moveTowards(humanoid, root, targetRoot.Position, pathState, chase)
+			task.wait(GuardianConfig.ChaseTickSeconds)
+		end
+	end)
+end
+
+local function watchEgg(instance: Instance)
+	if not instance:IsA("Model") or instance.Name ~= "WorldEgg" then return end
+	instance:GetAttributeChangedSignal("Carried"):Connect(function()
+		if instance:GetAttribute("Carried") == true then startChase(instance) end
+	end)
+	if instance:GetAttribute("Carried") == true then startChase(instance) end
+end
+
+for _, child in ipairs(workspace:GetChildren()) do watchEgg(child) end
+workspace.ChildAdded:Connect(watchEgg)
+Players.PlayerRemoving:Connect(function(player)
+	for egg, chase in pairs(activeChases) do if chase.player == player then finishChase(egg) end end
+end)
+
+print("[GuardianService] Phase 8 guardian service loaded.")
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="19">
+        <Properties>
+          <string name="Name">PlayerStats</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local BASE_WALK_SPEED = 16
+local SLOW_MODE_WALK_SPEED = 8
+
+local slowModeEvent = ReplicatedStorage:FindFirstChild("SetSlowMode")
+if not slowModeEvent then
+	slowModeEvent = Instance.new("RemoteEvent")
+	slowModeEvent.Name = "SetSlowMode"
+	slowModeEvent.Parent = ReplicatedStorage
+end
+
+-- Pretvara Speed stat u stvarni Roblox WalkSpeed
+local function calculateWalkSpeed(speedStat)
+	return BASE_WALK_SPEED + 12 * math.log10((speedStat / 10) + 1)
+end
+
+local function getCarryMovementPenalty(player)
+	local penalty = player:GetAttribute("CarryMovementPenalty")
+
+	if typeof(penalty) ~= "number" then
+		return 0
+	end
+
+	return math.clamp(penalty, 0, 0.95)
+end
+
+local function updatePlayerSpeed(player)
+	local stats = player:FindFirstChild("Stats")
+	if not stats then
+		return
+	end
+
+	local speed = stats:FindFirstChild("Speed")
+	if not speed then
+		return
+	end
+
+	local character = player.Character
+	if not character then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+
+	if player:GetAttribute("SlowMode") then
+		humanoid.WalkSpeed = SLOW_MODE_WALK_SPEED
+	else
+		humanoid.WalkSpeed = calculateWalkSpeed(speed.Value)
+			* (1 - getCarryMovementPenalty(player))
+	end
+end
+
+local function setupPlayer(player)
+	player:SetAttribute("SlowMode", false)
+
+	if player:GetAttribute("CarryMovementPenalty") == nil then
+		player:SetAttribute("CarryMovementPenalty", 0)
+	end
+
+	-------------------------------
+	-- STATS
+	-------------------------------
+
+	local stats = Instance.new("Folder")
+	stats.Name = "Stats"
+	stats.Parent = player
+
+	local speed = Instance.new("NumberValue")
+	speed.Name = "Speed"
+	speed.Value = 0
+	speed.Parent = stats
+
+	local cash = Instance.new("NumberValue")
+	cash.Name = "Cash"
+	cash.Value = 0
+	cash.Parent = stats
+
+	-------------------------------
+	-- LEADERSTATS
+	-------------------------------
+
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+
+	local displaySpeed = Instance.new("NumberValue")
+	displaySpeed.Name = "Speed"
+	displaySpeed.Value = speed.Value
+	displaySpeed.Parent = leaderstats
+
+	local displayCash = Instance.new("NumberValue")
+	displayCash.Name = "Cash"
+	displayCash.Value = cash.Value
+	displayCash.Parent = leaderstats
+
+	-------------------------------
+	-- SYNC
+	-------------------------------
+
+	speed.Changed:Connect(function()
+		displaySpeed.Value = math.floor(speed.Value)
+
+		updatePlayerSpeed(player)
+	end)
+
+	player:GetAttributeChangedSignal("SlowMode"):Connect(function()
+		updatePlayerSpeed(player)
+	end)
+
+	player:GetAttributeChangedSignal("CarryMovementPenalty"):Connect(function()
+		updatePlayerSpeed(player)
+	end)
+
+	cash.Changed:Connect(function()
+		displayCash.Value = math.floor(cash.Value)
+	end)
+
+	-------------------------------
+	-- CHARACTER
+	-------------------------------
+
+	local function characterAdded(character)
+		local humanoid = character:WaitForChild("Humanoid")
+
+		task.wait()
+
+		updatePlayerSpeed(player)
+	end
+
+	player.CharacterAdded:Connect(characterAdded)
+
+	if player.Character then
+		characterAdded(player.Character)
+	end
+end
+
+slowModeEvent.OnServerEvent:Connect(function(player, enabled)
+	if typeof(enabled) == "boolean" then
+		player:SetAttribute("SlowMode", enabled)
+	end
+end)
+
+Players.PlayerAdded:Connect(setupPlayer)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	setupPlayer(player)
+end
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="20">
+        <Properties>
+          <string name="Name">TreadmillSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source">local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local treadmillFolder = workspace:WaitForChild("Treadmills")
+
+local TRAIN_INTERVAL = 0.25
+
+-- player = treadmill
+local playersTraining = {}
+
+-- Sprečava više Touch eventova
+local touchCounts = {}
+
+local function getPlayerFromHit(hit)
+
+	local character = hit:FindFirstAncestorOfClass("Model")
+
+	if not character then
+		return nil
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if not humanoid then
+		return nil
+	end
+
+	return Players:GetPlayerFromCharacter(character)
+end
+
+local function setupTreadmill(treadmill)
+
+	local trainingZone = treadmill:FindFirstChild("TrainingZone")
+
+	if not trainingZone then
+		warn(treadmill.Name .. " nema TrainingZone")
+		return
+	end
+
+	----------------------------------
+	-- PLAYER ENTERS
+	----------------------------------
+
+	trainingZone.Touched:Connect(function(hit)
+
+		local player = getPlayerFromHit(hit)
+
+		if not player then
+			return
+		end
+
+		touchCounts[player] = touchCounts[player] or {}
+		touchCounts[player][trainingZone] =
+			(touchCounts[player][trainingZone] or 0) + 1
+
+		playersTraining[player] = treadmill
+	end)
+
+	----------------------------------
+	-- PLAYER LEAVES
+	----------------------------------
+
+	trainingZone.TouchEnded:Connect(function(hit)
+
+		local player = getPlayerFromHit(hit)
+
+		if not player then
+			return
+		end
+
+		if not touchCounts[player] then
+			return
+		end
+
+		local currentCount =
+			touchCounts[player][trainingZone] or 0
+
+		currentCount -= 1
+
+		if currentCount &lt;= 0 then
+
+			touchCounts[player][trainingZone] = nil
+
+			if playersTraining[player] == treadmill then
+				playersTraining[player] = nil
+			end
+
+		else
+
+			touchCounts[player][trainingZone] = currentCount
+
+		end
+	end)
+end
+
+----------------------------------
+-- SETUP
+----------------------------------
+
+for _, treadmill in ipairs(treadmillFolder:GetChildren()) do
+
+	if treadmill:IsA("Model") then
+		setupTreadmill(treadmill)
+	end
+
+end
+
+treadmillFolder.ChildAdded:Connect(function(treadmill)
+
+	if treadmill:IsA("Model") then
+		setupTreadmill(treadmill)
+	end
+
+end)
+
+----------------------------------
+-- TRAINING LOOP
+----------------------------------
+
+task.spawn(function()
+
+	while true do
+
+		task.wait(TRAIN_INTERVAL)
+
+		for player, treadmill in pairs(playersTraining) do
+
+			if not player.Parent then
+				playersTraining[player] = nil
+				continue
+			end
+
+			local stats = player:FindFirstChild("Stats")
+
+			if not stats then
+				continue
+			end
+
+			local speed = stats:FindFirstChild("Speed")
+
+			if not speed then
+				continue
+			end
+
+			local gain =
+				treadmill:GetAttribute("SpeedGain") or 1
+
+			speed.Value += gain * TRAIN_INTERVAL
+
+		end
+
+	end
+
+end)
+
+----------------------------------
+-- CLEANUP
+----------------------------------
+
+Players.PlayerRemoving:Connect(function(player)
+
+	playersTraining[player] = nil
+	touchCounts[player] = nil
+
+end)</string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="21">
+    <Properties>
+      <string name="Name">SoundService</string>
+      <bool name="RespectFilteringEnabled">true</bool>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="22">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="23">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="LocalScript" referent="24">
+        <Properties>
+          <string name="Name">Client</string>
+          <string name="Source"><![CDATA[print("Hello world, from client!")
+]]></string>
+        </Properties>
+        <Item class="LocalScript" referent="25">
+          <Properties>
+            <string name="Name">AreaLighting</string>
+            <string name="Source">local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local Profiles = require(
+	ReplicatedStorage
+		:WaitForChild("Modules")
+		:WaitForChild("LightingProfiles")
+)
+
+local Areas = workspace:WaitForChild("Areas")
+
+local TRANSITION_TIME = 1.5
+local CHECK_INTERVAL = 0.15
+
+local currentArea = nil
+local elapsed = 0
+
+-- Kreiramo efekte ako već ne postoje
+
+local atmosphere = Lighting:FindFirstChild("AreaAtmosphere")
+
+if not atmosphere then
+	atmosphere = Instance.new("Atmosphere")
+	atmosphere.Name = "AreaAtmosphere"
+	atmosphere.Parent = Lighting
+end
+
+local colorCorrection = Lighting:FindFirstChild("AreaColorCorrection")
+
+if not colorCorrection then
+	colorCorrection = Instance.new("ColorCorrectionEffect")
+	colorCorrection.Name = "AreaColorCorrection"
+	colorCorrection.Parent = Lighting
+end
+
+local bloom = Lighting:FindFirstChild("AreaBloom")
+
+if not bloom then
+	bloom = Instance.new("BloomEffect")
+	bloom.Name = "AreaBloom"
+	bloom.Parent = Lighting
+end
+
+local tweenInfo = TweenInfo.new(
+	TRANSITION_TIME,
+	Enum.EasingStyle.Quad,
+	Enum.EasingDirection.Out
+)
+
+local function tweenObject(object, properties)
+	local tween = TweenService:Create(
+		object,
+		tweenInfo,
+		properties
+	)
+
+	tween:Play()
+
+	return tween
+end
+
+local function applyProfile(areaName)
+	local profile = Profiles[areaName]
+
+	if not profile then
+		warn("Nema Lighting profila za area:", areaName)
+		return
+	end
+
+	print("Lighting area:", areaName)
+
+	-- Glavni Lighting
+
+	local lightingProperties = {}
+
+	if profile.Brightness ~= nil then
+		lightingProperties.Brightness = profile.Brightness
+	end
+
+	if profile.ClockTime ~= nil then
+		lightingProperties.ClockTime = profile.ClockTime
+	end
+
+	if profile.ExposureCompensation ~= nil then
+		lightingProperties.ExposureCompensation =
+			profile.ExposureCompensation
+	end
+
+	if profile.Ambient ~= nil then
+		lightingProperties.Ambient = profile.Ambient
+	end
+
+	if profile.OutdoorAmbient ~= nil then
+		lightingProperties.OutdoorAmbient =
+			profile.OutdoorAmbient
+	end
+
+	tweenObject(
+		Lighting,
+		lightingProperties
+	)
+
+	-- Atmosphere
+
+	if profile.Atmosphere then
+		local data = profile.Atmosphere
+
+		tweenObject(atmosphere, {
+			Density = data.Density or atmosphere.Density,
+			Offset = data.Offset or atmosphere.Offset,
+			Color = data.Color or atmosphere.Color,
+			Decay = data.Decay or atmosphere.Decay,
+			Glare = data.Glare or atmosphere.Glare,
+			Haze = data.Haze or atmosphere.Haze,
+		})
+	end
+
+	-- Color Correction
+
+	if profile.ColorCorrection then
+		local data = profile.ColorCorrection
+
+		tweenObject(colorCorrection, {
+			Brightness = data.Brightness
+				or colorCorrection.Brightness,
+
+			Contrast = data.Contrast
+				or colorCorrection.Contrast,
+
+			Saturation = data.Saturation
+				or colorCorrection.Saturation,
+
+			TintColor = data.TintColor
+				or colorCorrection.TintColor,
+		})
+	end
+
+	-- Bloom
+
+	if profile.Bloom then
+		local data = profile.Bloom
+
+		tweenObject(bloom, {
+			Intensity = data.Intensity
+				or bloom.Intensity,
+
+			Size = data.Size
+				or bloom.Size,
+
+			Threshold = data.Threshold
+				or bloom.Threshold,
+		})
+	end
+end
+
+local function isPointInsidePart(point, part)
+	local relativePoint =
+		part.CFrame:PointToObjectSpace(point)
+
+	local halfSize = part.Size / 2
+
+	return
+		math.abs(relativePoint.X) &lt;= halfSize.X
+		and math.abs(relativePoint.Y) &lt;= halfSize.Y
+		and math.abs(relativePoint.Z) &lt;= halfSize.Z
+end
+
+local function getCurrentArea(position)
+	for _, area in ipairs(Areas:GetChildren()) do
+
+		local zone =
+			area:FindFirstChild("LightingZone")
+
+		if zone
+			and zone:IsA("BasePart")
+			and isPointInsidePart(position, zone)
+		then
+			return area.Name
+		end
+	end
+
+	return nil
+end
+
+local function updateArea()
+	local character = player.Character
+
+	if not character then
+		return
+	end
+
+	local rootPart =
+		character:FindFirstChild("HumanoidRootPart")
+
+	if not rootPart then
+		return
+	end
+
+	local areaName =
+		getCurrentArea(rootPart.Position)
+
+	if areaName
+		and areaName ~= currentArea
+	then
+
+		currentArea = areaName
+
+		applyProfile(areaName)
+	end
+end
+
+RunService.Heartbeat:Connect(function(deltaTime)
+
+	elapsed += deltaTime
+
+	if elapsed &lt; CHECK_INTERVAL then
+		return
+	end
+
+	elapsed = 0
+
+	updateArea()
+end)</string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="26">
+          <Properties>
+            <string name="Name">BiomeUI</string>
+            <string name="Source">local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+local event = ReplicatedStorage:WaitForChild("BiomeUIEvent")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BiomeUI"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 10
+gui.IgnoreGuiInset = false
+gui.Parent = playerGui
+
+-- Main panel
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.AnchorPoint = Vector2.new(0.5, 0)
+panel.Position = UDim2.new(0.5, 0, 0, 18)
+panel.Size = UDim2.new(0.9, 0, 0, 210)
+panel.BackgroundColor3 = Color3.fromRGB(16, 20, 29)
+panel.BackgroundTransparency = 0.05
+panel.BorderSizePixel = 0
+panel.Visible = false
+panel.Parent = gui
+
+local constraint = Instance.new("UISizeConstraint")
+constraint.MaxSize = Vector2.new(380, 210)
+constraint.MinSize = Vector2.new(300, 210)
+constraint.Parent = panel
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 18)
+corner.Parent = panel
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(78, 96, 125)
+stroke.Transparency = 0.3
+stroke.Thickness = 1.5
+stroke.Parent = panel
+
+-- Soft gradient
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 37, 52)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 18, 27))
+})
+gradient.Rotation = 90
+gradient.Parent = panel
+
+-- Inner top glow
+local glow = Instance.new("Frame")
+glow.Name = "Glow"
+glow.Position = UDim2.new(0, 12, 0, 8)
+glow.Size = UDim2.new(1, -24, 0, 2)
+glow.BackgroundColor3 = Color3.fromRGB(90, 175, 255)
+glow.BackgroundTransparency = 0.25
+glow.BorderSizePixel = 0
+glow.Parent = panel
+
+local glowCorner = Instance.new("UICorner")
+glowCorner.CornerRadius = UDim.new(1, 0)
+glowCorner.Parent = glow
+
+-- Biome pill
+local biomeBadge = Instance.new("Frame")
+biomeBadge.Name = "BiomeBadge"
+biomeBadge.AnchorPoint = Vector2.new(0.5, 0)
+biomeBadge.Position = UDim2.new(0.5, 0, 0, 16)
+biomeBadge.Size = UDim2.new(0, 210, 0, 32)
+biomeBadge.BackgroundColor3 = Color3.fromRGB(32, 43, 60)
+biomeBadge.BackgroundTransparency = 0.08
+biomeBadge.BorderSizePixel = 0
+biomeBadge.Parent = panel
+
+local badgeCorner = Instance.new("UICorner")
+badgeCorner.CornerRadius = UDim.new(1, 0)
+badgeCorner.Parent = biomeBadge
+
+local badgeStroke = Instance.new("UIStroke")
+badgeStroke.Color = Color3.fromRGB(85, 150, 225)
+badgeStroke.Transparency = 0.5
+badgeStroke.Parent = biomeBadge
+
+local biomeName = Instance.new("TextLabel")
+biomeName.Name = "BiomeName"
+biomeName.Size = UDim2.new(1, -20, 1, 0)
+biomeName.Position = UDim2.new(0, 10, 0, 0)
+biomeName.BackgroundTransparency = 1
+biomeName.Font = Enum.Font.GothamBlack
+biomeName.TextSize = 17
+biomeName.TextColor3 = Color3.fromRGB(238, 245, 255)
+biomeName.Text = ""
+biomeName.TextXAlignment = Enum.TextXAlignment.Center
+biomeName.Parent = biomeBadge
+
+-- Stat cards
+local function createStatCard(name, xScale, title)
+	local card = Instance.new("Frame")
+	card.Name = name
+	card.Position = UDim2.new(xScale, 0, 0, 62)
+	card.Size = UDim2.new(0.5, -18, 0, 66)
+	card.BackgroundColor3 = Color3.fromRGB(26, 32, 44)
+	card.BackgroundTransparency = 0.05
+	card.BorderSizePixel = 0
+	card.Parent = panel
+
+	local cardCorner = Instance.new("UICorner")
+	cardCorner.CornerRadius = UDim.new(0, 12)
+	cardCorner.Parent = card
+
+	local cardStroke = Instance.new("UIStroke")
+	cardStroke.Color = Color3.fromRGB(61, 72, 92)
+	cardStroke.Transparency = 0.55
+	cardStroke.Parent = card
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "Title"
+	titleLabel.Position = UDim2.new(0, 10, 0, 7)
+	titleLabel.Size = UDim2.new(1, -20, 0, 18)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Font = Enum.Font.GothamMedium
+	titleLabel.TextSize = 11
+	titleLabel.TextColor3 = Color3.fromRGB(145, 158, 180)
+	titleLabel.Text = title
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Parent = card
+
+	local value = Instance.new("TextLabel")
+	value.Name = "Value"
+	value.Position = UDim2.new(0, 10, 0, 25)
+	value.Size = UDim2.new(1, -20, 0, 32)
+	value.BackgroundTransparency = 1
+	value.Font = Enum.Font.GothamBlack
+	value.TextSize = 24
+	value.TextColor3 = Color3.fromRGB(245, 248, 255)
+	value.Text = "0"
+	value.TextXAlignment = Enum.TextXAlignment.Left
+	value.Parent = card
+
+	return card, value
+end
+
+local recommendedCard, recommendedValue =
+	createStatCard("RecommendedCard", 0, "RECOMMENDED SPEED")
+
+recommendedCard.Position = UDim2.new(0, 12, 0, 62)
+
+local currentCard, currentValue =
+	createStatCard("CurrentCard", 0.5, "YOUR SPEED")
+
+currentCard.Position = UDim2.new(0.5, 6, 0, 62)
+
+-- Progress background
+local progressBackground = Instance.new("Frame")
+progressBackground.Name = "ProgressBackground"
+progressBackground.Position = UDim2.new(0, 12, 0, 140)
+progressBackground.Size = UDim2.new(1, -24, 0, 10)
+progressBackground.BackgroundColor3 = Color3.fromRGB(37, 44, 58)
+progressBackground.BorderSizePixel = 0
+progressBackground.Parent = panel
+
+local progressCorner = Instance.new("UICorner")
+progressCorner.CornerRadius = UDim.new(1, 0)
+progressCorner.Parent = progressBackground
+
+local progressFill = Instance.new("Frame")
+progressFill.Name = "ProgressFill"
+progressFill.Size = UDim2.new(0, 0, 1, 0)
+progressFill.BackgroundColor3 = Color3.fromRGB(82, 184, 255)
+progressFill.BorderSizePixel = 0
+progressFill.Parent = progressBackground
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(1, 0)
+fillCorner.Parent = progressFill
+
+local fillGradient = Instance.new("UIGradient")
+fillGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(67, 143, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(94, 225, 255))
+})
+fillGradient.Parent = progressFill
+
+-- Status
+local statusContainer = Instance.new("Frame")
+statusContainer.Name = "StatusContainer"
+statusContainer.AnchorPoint = Vector2.new(0.5, 0)
+statusContainer.Position = UDim2.new(0.5, 0, 0, 163)
+statusContainer.Size = UDim2.new(1, -24, 0, 34)
+statusContainer.BackgroundColor3 = Color3.fromRGB(33, 39, 51)
+statusContainer.BorderSizePixel = 0
+statusContainer.Parent = panel
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 10)
+statusCorner.Parent = statusContainer
+
+local status = Instance.new("TextLabel")
+status.Name = "Status"
+status.Size = UDim2.new(1, 0, 1, 0)
+status.BackgroundTransparency = 1
+status.Font = Enum.Font.GothamBlack
+status.TextSize = 18
+status.Text = ""
+status.TextColor3 = Color3.fromRGB(255, 255, 255)
+status.Parent = statusContainer
+
+local function formatSpeed(value)
+	if value == math.floor(value) then
+		return string.format("%.0f", value)
+	end
+
+	return string.format("%.2f", value)
+end
+
+local function updateProgress(playerSpeed, recommendedSpeed)
+	local ratio = 0
+
+	if recommendedSpeed &gt; 0 then
+		ratio = math.clamp(playerSpeed / recommendedSpeed, 0, 1)
+	end
+
+	TweenService:Create(
+		progressFill,
+		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{
+			Size = UDim2.new(ratio, 0, 1, 0)
+		}
+	):Play()
+end
+
+local function showPanel()
+	panel.Position = UDim2.new(0.5, 0, 0, 4)
+	panel.BackgroundTransparency = 1
+	panel.Visible = true
+
+	TweenService:Create(
+		panel,
+		TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{
+			Position = UDim2.new(0.5, 0, 0, 18),
+			BackgroundTransparency = 0.05
+		}
+	):Play()
+end
+
+event.OnClientEvent:Connect(function(data)
+	if not data.Visible then
+		panel.Visible = false
+		return
+	end
+
+	biomeName.Text = string.upper(data.BiomeName)
+
+	recommendedValue.Text =
+		formatSpeed(data.RecommendedSpeed)
+
+	currentValue.Text =
+		formatSpeed(data.PlayerSpeed)
+
+	status.Text = data.Status
+
+	updateProgress(
+		data.PlayerSpeed,
+		data.RecommendedSpeed
+	)
+
+	if data.Status == "READY" then
+		status.TextColor3 = Color3.fromRGB(110, 255, 165)
+		statusContainer.BackgroundColor3 =
+			Color3.fromRGB(24, 66, 49)
+
+		currentValue.TextColor3 =
+			Color3.fromRGB(110, 255, 165)
+	else
+		status.TextColor3 = Color3.fromRGB(255, 116, 116)
+		statusContainer.BackgroundColor3 =
+			Color3.fromRGB(72, 34, 39)
+
+		currentValue.TextColor3 =
+			Color3.fromRGB(255, 140, 140)
+	end
+
+	if not panel.Visible then
+		showPanel()
+	end
+end)
+
+event:FireServer("Ready")</string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="27">
+          <Properties>
+            <string name="Name">CustomMovementAnimations</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+
+local RUN_ANIMATION_ID = "rbxassetid://110696808533851"
+local WALK_ANIMATION_ID = "rbxassetid://507777826"
+
+local function setupCharacter(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	local animate = character:WaitForChild("Animate")
+
+	local run = animate:FindFirstChild("run")
+
+	if not run then
+		warn("Run animation nije pronađena")
+		return
+	end
+
+	local runAnim = run:FindFirstChild("RunAnim")
+
+	if not runAnim then
+		warn("RunAnim nije pronađen")
+		return
+	end
+
+	runAnim.AnimationId = player:GetAttribute("SlowMode") and WALK_ANIMATION_ID or RUN_ANIMATION_ID
+end
+
+if player.Character then
+	setupCharacter(player.Character)
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+
+player:GetAttributeChangedSignal("SlowMode"):Connect(function()
+	if player.Character then
+		setupCharacter(player.Character)
+	end
+end)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="28">
+          <Properties>
+            <string name="Name">GuardianRagdoll</string>
+            <string name="Source"><![CDATA[-- Match the local Humanoid/animation controller to the server's hit state.
+-- The client never decides who gets hit or the launch velocity.
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local function setup(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	local connection, stepConnection
+	local saved = nil
+	local function restore()
+		if stepConnection then stepConnection:Disconnect(); stepConnection = nil end
+		if not saved then return end
+		for motor, enabled in pairs(saved.motors) do
+			if motor.Parent then motor.Enabled = enabled end
+		end
+		if saved.animate and saved.animate.Parent then saved.animate.Enabled = saved.animateEnabled end
+		if humanoid.Parent then
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, saved.gettingUp)
+			humanoid.PlatformStand = false
+			if humanoid.Health > 0 then humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) end
+		end
+		saved = nil
+	end
+	local function update()
+		if character:GetAttribute("GuardianRagdoll") ~= true then restore(); return end
+		if saved then return end
+		local animate = character:FindFirstChild("Animate")
+		saved = { motors = {}, gettingUp = humanoid:GetStateEnabled(Enum.HumanoidStateType.GettingUp), animate = nil }
+		if animate and animate:IsA("LocalScript") then
+			saved.animate, saved.animateEnabled = animate, animate.Enabled
+			animate.Enabled = false
+		end
+		-- Server tags only originally enabled body motors belonging to this hit.
+		local function enforce()
+			for _, joint in ipairs(character:GetDescendants()) do
+				if (joint:IsA("Motor6D") or joint:IsA("AnimationConstraint"))
+					and joint:GetAttribute("GuardianRagdollMotor") == true then
+					saved.motors[joint] = true
+					joint.Enabled = false
+				end
+			end
+			local animator = humanoid:FindFirstChildOfClass("Animator")
+			if animator then
+				for _, track in ipairs(animator:GetPlayingAnimationTracks()) do track:Stop(0) end
+			end
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+			humanoid.PlatformStand = true
+			humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+		end
+		enforce()
+		stepConnection = RunService.PreSimulation:Connect(enforce)
+	end
+	connection = character:GetAttributeChangedSignal("GuardianRagdoll"):Connect(update)
+	local removing
+	removing = player.CharacterRemoving:Connect(function(oldCharacter)
+		if oldCharacter ~= character then return end
+		connection:Disconnect()
+		restore()
+		removing:Disconnect()
+	end)
+	update()
+end
+
+player.CharacterAdded:Connect(setup)
+if player.Character then task.spawn(setup, player.Character) end
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="29">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="FilteringEnabled">true</bool>
+      <bool name="NeedsPivotMigration">false</bool>
+    </Properties>
+    <Item class="Part" referent="30">
+      <Properties>
+        <string name="Name">Baseplate</string>
+        <bool name="Anchored">true</bool>
+        <Color3uint8 name="Color3uint8">6512483</Color3uint8>
+        <bool name="Locked">true</bool>
+        <Vector3 name="Position">
+          <X>0</X>
+          <Y>-10</Y>
+          <Z>0</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>512</X>
+          <Y>20</Y>
+          <Z>512</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>
