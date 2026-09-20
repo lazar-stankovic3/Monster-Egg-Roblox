@@ -1,6 +1,6 @@
 # Faza 15 — Treadmill nivoi i trening
 
-Status 2026-09-20: implementirano; čeka Studio potvrdu. Faza 14 je potvrđena. Korisnik zahteva kupovinu nivoa redom, privremene modele i zaključavanje u centru trake do skoka.
+Status 2026-09-20: potvrđeno korisnikovim Studio testiranjem, uključujući animaciju treninga. Faza 14 je potvrđena. Korisnik zahteva kupovinu nivoa redom, privremene modele i zaključavanje u centru trake do skoka.
 
 ## Postavka
 

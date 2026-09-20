@@ -3,6 +3,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Modules:WaitForChild("HatchConfig"))
 local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
 local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
+local IndexService = require(script.Parent:WaitForChild("IndexService"))
+local Players = game:GetService("Players")
 local Service = {}
 local active = {}
 local random = Random.new()
@@ -48,6 +50,7 @@ end
 function Service.Start()
 	if started then return end
 	started = true
+	IndexService.Start()
 	local elapsed = 0
 	RunService.Heartbeat:Connect(function(dt)
 		elapsed += dt
@@ -78,6 +81,8 @@ function Service.Start()
 				active[egg] = nil
 				entry.monster.Parent = egg.Parent
 				egg:Destroy()
+				local owner = Players:GetPlayerByUserId(entry.owner)
+				if owner then IndexService.RecordHatch(owner, entry.monster) end
 			else
 				local remaining = math.ceil(entry.deadline - now)
 				if entry.remaining ~= remaining then

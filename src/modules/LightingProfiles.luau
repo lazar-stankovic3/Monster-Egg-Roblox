@@ -109,27 +109,27 @@ Profiles.Desert = {
 }
 
 Profiles.Volcano = {
-	Brightness = 1.3,
+	Brightness = 1.55,
 	ClockTime = 18,
-	ExposureCompensation = -0.25,
+	ExposureCompensation = -0.12,
 
-	Ambient = Color3.fromRGB(90, 55, 45),
-	OutdoorAmbient = Color3.fromRGB(110, 65, 50),
+	Ambient = Color3.fromRGB(105, 65, 52),
+	OutdoorAmbient = Color3.fromRGB(125, 78, 60),
 
 	Atmosphere = {
-		Density = 0.48,
+		Density = 0.44,
 		Offset = 0,
-		Color = Color3.fromRGB(115, 80, 65),
-		Decay = Color3.fromRGB(55, 25, 20),
+		Color = Color3.fromRGB(125, 88, 70),
+		Decay = Color3.fromRGB(60, 30, 23),
 		Glare = 0.3,
-		Haze = 3,
+		Haze = 2.6,
 	},
 
 	ColorCorrection = {
-		Brightness = -0.08,
-		Contrast = 0.2,
-		Saturation = -0.05,
-		TintColor = Color3.fromRGB(255, 155, 120),
+		Brightness = -0.04,
+		Contrast = 0.18,
+		Saturation = -0.02,
+		TintColor = Color3.fromRGB(255, 165, 125),
 	},
 }
 
