@@ -1,9 +1,22 @@
+```lua
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local event = ReplicatedStorage:WaitForChild("BiomeUIEvent")
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+
+local AUTO_HIDE_TIME = 2.5
+local SHOW_TIME = 0.22
+local HIDE_TIME = 0.18
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "BiomeUI"
@@ -12,279 +25,371 @@ gui.DisplayOrder = 10
 gui.IgnoreGuiInset = false
 gui.Parent = playerGui
 
--- Main panel
+--------------------------------------------------
+-- MAIN PANEL
+--------------------------------------------------
+
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
+
 panel.AnchorPoint = Vector2.new(0.5, 0)
 panel.Position = UDim2.new(0.5, 0, 0, 18)
-panel.Size = UDim2.new(0.9, 0, 0, 210)
-panel.BackgroundColor3 = Color3.fromRGB(16, 20, 29)
-panel.BackgroundTransparency = 0.05
+
+panel.Size = UDim2.new(0, 230, 0, 72)
+
+panel.BackgroundColor3 = Color3.fromRGB(10, 13, 18)
+panel.BackgroundTransparency = 0.28
+
 panel.BorderSizePixel = 0
 panel.Visible = false
+
 panel.Parent = gui
 
-local constraint = Instance.new("UISizeConstraint")
-constraint.MaxSize = Vector2.new(380, 210)
-constraint.MinSize = Vector2.new(300, 210)
-constraint.Parent = panel
+--------------------------------------------------
+-- CORNER
+--------------------------------------------------
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 18)
+corner.CornerRadius = UDim.new(0, 14)
 corner.Parent = panel
 
+--------------------------------------------------
+-- STROKE
+--------------------------------------------------
+
 local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(78, 96, 125)
-stroke.Transparency = 0.3
-stroke.Thickness = 1.5
+
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Transparency = 0.88
+stroke.Thickness = 1
+
 stroke.Parent = panel
 
--- Soft gradient
+--------------------------------------------------
+-- GRADIENT
+--------------------------------------------------
+
 local gradient = Instance.new("UIGradient")
+
 gradient.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 37, 52)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 18, 27))
+	ColorSequenceKeypoint.new(
+		0,
+		Color3.fromRGB(28, 33, 44)
+	),
+
+	ColorSequenceKeypoint.new(
+		1,
+		Color3.fromRGB(11, 14, 20)
+	)
 })
+
 gradient.Rotation = 90
+
 gradient.Parent = panel
 
--- Inner top glow
-local glow = Instance.new("Frame")
-glow.Name = "Glow"
-glow.Position = UDim2.new(0, 12, 0, 8)
-glow.Size = UDim2.new(1, -24, 0, 2)
-glow.BackgroundColor3 = Color3.fromRGB(90, 175, 255)
-glow.BackgroundTransparency = 0.25
-glow.BorderSizePixel = 0
-glow.Parent = panel
-
-local glowCorner = Instance.new("UICorner")
-glowCorner.CornerRadius = UDim.new(1, 0)
-glowCorner.Parent = glow
-
--- Biome pill
-local biomeBadge = Instance.new("Frame")
-biomeBadge.Name = "BiomeBadge"
-biomeBadge.AnchorPoint = Vector2.new(0.5, 0)
-biomeBadge.Position = UDim2.new(0.5, 0, 0, 16)
-biomeBadge.Size = UDim2.new(0, 210, 0, 32)
-biomeBadge.BackgroundColor3 = Color3.fromRGB(32, 43, 60)
-biomeBadge.BackgroundTransparency = 0.08
-biomeBadge.BorderSizePixel = 0
-biomeBadge.Parent = panel
-
-local badgeCorner = Instance.new("UICorner")
-badgeCorner.CornerRadius = UDim.new(1, 0)
-badgeCorner.Parent = biomeBadge
-
-local badgeStroke = Instance.new("UIStroke")
-badgeStroke.Color = Color3.fromRGB(85, 150, 225)
-badgeStroke.Transparency = 0.5
-badgeStroke.Parent = biomeBadge
+--------------------------------------------------
+-- BIOME NAME
+--------------------------------------------------
 
 local biomeName = Instance.new("TextLabel")
+
 biomeName.Name = "BiomeName"
-biomeName.Size = UDim2.new(1, -20, 1, 0)
-biomeName.Position = UDim2.new(0, 10, 0, 0)
+
+biomeName.Position = UDim2.new(0, 14, 0, 10)
+biomeName.Size = UDim2.new(1, -28, 0, 25)
+
 biomeName.BackgroundTransparency = 1
-biomeName.Font = Enum.Font.GothamBlack
+
+biomeName.Font = Enum.Font.GothamBold
 biomeName.TextSize = 17
-biomeName.TextColor3 = Color3.fromRGB(238, 245, 255)
+
+biomeName.TextColor3 = Color3.fromRGB(245, 248, 255)
+
 biomeName.Text = ""
+
 biomeName.TextXAlignment = Enum.TextXAlignment.Center
-biomeName.Parent = biomeBadge
 
--- Stat cards
-local function createStatCard(name, xScale, title)
-	local card = Instance.new("Frame")
-	card.Name = name
-	card.Position = UDim2.new(xScale, 0, 0, 62)
-	card.Size = UDim2.new(0.5, -18, 0, 66)
-	card.BackgroundColor3 = Color3.fromRGB(26, 32, 44)
-	card.BackgroundTransparency = 0.05
-	card.BorderSizePixel = 0
-	card.Parent = panel
+biomeName.Parent = panel
 
-	local cardCorner = Instance.new("UICorner")
-	cardCorner.CornerRadius = UDim.new(0, 12)
-	cardCorner.Parent = card
+--------------------------------------------------
+-- RECOMMENDED SPEED
+--------------------------------------------------
 
-	local cardStroke = Instance.new("UIStroke")
-	cardStroke.Color = Color3.fromRGB(61, 72, 92)
-	cardStroke.Transparency = 0.55
-	cardStroke.Parent = card
+local recommended = Instance.new("TextLabel")
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Name = "Title"
-	titleLabel.Position = UDim2.new(0, 10, 0, 7)
-	titleLabel.Size = UDim2.new(1, -20, 0, 18)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Font = Enum.Font.GothamMedium
-	titleLabel.TextSize = 11
-	titleLabel.TextColor3 = Color3.fromRGB(145, 158, 180)
-	titleLabel.Text = title
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = card
+recommended.Name = "Recommended"
 
-	local value = Instance.new("TextLabel")
-	value.Name = "Value"
-	value.Position = UDim2.new(0, 10, 0, 25)
-	value.Size = UDim2.new(1, -20, 0, 32)
-	value.BackgroundTransparency = 1
-	value.Font = Enum.Font.GothamBlack
-	value.TextSize = 24
-	value.TextColor3 = Color3.fromRGB(245, 248, 255)
-	value.Text = "0"
-	value.TextXAlignment = Enum.TextXAlignment.Left
-	value.Parent = card
+recommended.Position = UDim2.new(0, 14, 0, 37)
+recommended.Size = UDim2.new(1, -28, 0, 22)
 
-	return card, value
-end
+recommended.BackgroundTransparency = 1
 
-local recommendedCard, recommendedValue =
-	createStatCard("RecommendedCard", 0, "RECOMMENDED SPEED")
+recommended.Font = Enum.Font.GothamMedium
+recommended.TextSize = 13
 
-recommendedCard.Position = UDim2.new(0, 12, 0, 62)
+recommended.TextColor3 = Color3.fromRGB(170, 180, 198)
 
-local currentCard, currentValue =
-	createStatCard("CurrentCard", 0.5, "YOUR SPEED")
+recommended.Text = "Recommended Speed  •  0"
 
-currentCard.Position = UDim2.new(0.5, 6, 0, 62)
+recommended.TextXAlignment = Enum.TextXAlignment.Center
 
--- Progress background
-local progressBackground = Instance.new("Frame")
-progressBackground.Name = "ProgressBackground"
-progressBackground.Position = UDim2.new(0, 12, 0, 140)
-progressBackground.Size = UDim2.new(1, -24, 0, 10)
-progressBackground.BackgroundColor3 = Color3.fromRGB(37, 44, 58)
-progressBackground.BorderSizePixel = 0
-progressBackground.Parent = panel
+recommended.Parent = panel
 
-local progressCorner = Instance.new("UICorner")
-progressCorner.CornerRadius = UDim.new(1, 0)
-progressCorner.Parent = progressBackground
-
-local progressFill = Instance.new("Frame")
-progressFill.Name = "ProgressFill"
-progressFill.Size = UDim2.new(0, 0, 1, 0)
-progressFill.BackgroundColor3 = Color3.fromRGB(82, 184, 255)
-progressFill.BorderSizePixel = 0
-progressFill.Parent = progressBackground
-
-local fillCorner = Instance.new("UICorner")
-fillCorner.CornerRadius = UDim.new(1, 0)
-fillCorner.Parent = progressFill
-
-local fillGradient = Instance.new("UIGradient")
-fillGradient.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(67, 143, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(94, 225, 255))
-})
-fillGradient.Parent = progressFill
-
--- Status
-local statusContainer = Instance.new("Frame")
-statusContainer.Name = "StatusContainer"
-statusContainer.AnchorPoint = Vector2.new(0.5, 0)
-statusContainer.Position = UDim2.new(0.5, 0, 0, 163)
-statusContainer.Size = UDim2.new(1, -24, 0, 34)
-statusContainer.BackgroundColor3 = Color3.fromRGB(33, 39, 51)
-statusContainer.BorderSizePixel = 0
-statusContainer.Parent = panel
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 10)
-statusCorner.Parent = statusContainer
-
-local status = Instance.new("TextLabel")
-status.Name = "Status"
-status.Size = UDim2.new(1, 0, 1, 0)
-status.BackgroundTransparency = 1
-status.Font = Enum.Font.GothamBlack
-status.TextSize = 18
-status.Text = ""
-status.TextColor3 = Color3.fromRGB(255, 255, 255)
-status.Parent = statusContainer
+--------------------------------------------------
+-- FORMAT SPEED
+--------------------------------------------------
 
 local function formatSpeed(value)
+
 	if value == math.floor(value) then
 		return string.format("%.0f", value)
 	end
 
-	return string.format("%.2f", value)
+	return string.format("%.1f", value)
+
 end
 
-local function updateProgress(playerSpeed, recommendedSpeed)
-	local ratio = 0
+--------------------------------------------------
+-- STATE
+--------------------------------------------------
 
-	if recommendedSpeed > 0 then
-		ratio = math.clamp(playerSpeed / recommendedSpeed, 0, 1)
-	end
+local hideTask = nil
+local showing = false
 
-	TweenService:Create(
-		progressFill,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{
-			Size = UDim2.new(ratio, 0, 1, 0)
-		}
-	):Play()
-end
+--------------------------------------------------
+-- SHOW PANEL
+--------------------------------------------------
 
 local function showPanel()
-	panel.Position = UDim2.new(0.5, 0, 0, 4)
+
+	showing = true
+
+	panel.Position = UDim2.new(0.5, 0, 0, 5)
+
 	panel.BackgroundTransparency = 1
+
+	biomeName.TextTransparency = 1
+	recommended.TextTransparency = 1
+
 	panel.Visible = true
+
+	--------------------------------------------------
+	-- PANEL ANIMATION
+	--------------------------------------------------
 
 	TweenService:Create(
 		panel,
-		TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+
+		TweenInfo.new(
+			SHOW_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.Out
+		),
+
 		{
 			Position = UDim2.new(0.5, 0, 0, 18),
-			BackgroundTransparency = 0.05
+			BackgroundTransparency = 0.28
 		}
+
 	):Play()
+
+	--------------------------------------------------
+	-- TEXT ANIMATION
+	--------------------------------------------------
+
+	TweenService:Create(
+		biomeName,
+
+		TweenInfo.new(
+			SHOW_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.Out
+		),
+
+		{
+			TextTransparency = 0
+		}
+
+	):Play()
+
+	TweenService:Create(
+		recommended,
+
+		TweenInfo.new(
+			SHOW_TIME + 0.03,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.Out
+		),
+
+		{
+			TextTransparency = 0
+		}
+
+	):Play()
+
 end
 
-event.OnClientEvent:Connect(function(data)
-	if not data.Visible then
-		panel.Visible = false
+--------------------------------------------------
+-- HIDE PANEL
+--------------------------------------------------
+
+local function hidePanel()
+
+	if not panel.Visible then
 		return
 	end
 
-	biomeName.Text = string.upper(data.BiomeName)
+	showing = false
 
-	recommendedValue.Text =
-		formatSpeed(data.RecommendedSpeed)
+	--------------------------------------------------
+	-- TEXT FADE
+	--------------------------------------------------
 
-	currentValue.Text =
-		formatSpeed(data.PlayerSpeed)
+	TweenService:Create(
+		biomeName,
 
-	status.Text = data.Status
+		TweenInfo.new(
+			HIDE_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.In
+		),
 
-	updateProgress(
-		data.PlayerSpeed,
-		data.RecommendedSpeed
+		{
+			TextTransparency = 1
+		}
+
+	):Play()
+
+	TweenService:Create(
+		recommended,
+
+		TweenInfo.new(
+			HIDE_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.In
+		),
+
+		{
+			TextTransparency = 1
+		}
+
+	):Play()
+
+	--------------------------------------------------
+	-- PANEL HIDE
+	--------------------------------------------------
+
+	local tween = TweenService:Create(
+		panel,
+
+		TweenInfo.new(
+			HIDE_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.In
+		),
+
+		{
+			Position = UDim2.new(0.5, 0, 0, 5),
+			BackgroundTransparency = 1
+		}
+
 	)
 
-	if data.Status == "READY" then
-		status.TextColor3 = Color3.fromRGB(110, 255, 165)
-		statusContainer.BackgroundColor3 =
-			Color3.fromRGB(24, 66, 49)
+	tween:Play()
 
-		currentValue.TextColor3 =
-			Color3.fromRGB(110, 255, 165)
-	else
-		status.TextColor3 = Color3.fromRGB(255, 116, 116)
-		statusContainer.BackgroundColor3 =
-			Color3.fromRGB(72, 34, 39)
+	tween.Completed:Wait()
 
-		currentValue.TextColor3 =
-			Color3.fromRGB(255, 140, 140)
+	if not showing then
+		panel.Visible = false
 	end
+
+end
+
+--------------------------------------------------
+-- EVENT
+--------------------------------------------------
+
+event.OnClientEvent:Connect(function(data)
+
+	--------------------------------------------------
+	-- SERVER TRAŽI DA SE UI SAKRIJE
+	--------------------------------------------------
+
+	if not data.Visible then
+
+		if hideTask then
+			task.cancel(hideTask)
+			hideTask = nil
+		end
+
+		hidePanel()
+
+		return
+
+	end
+
+	--------------------------------------------------
+	-- UPDATE BIOME NAME
+	--------------------------------------------------
+
+	biomeName.Text = string.upper(
+		data.BiomeName or "UNKNOWN BIOME"
+	)
+
+	--------------------------------------------------
+	-- UPDATE RECOMMENDED SPEED
+	--------------------------------------------------
+
+	local speed = data.RecommendedSpeed or 0
+
+	recommended.Text =
+		"Recommended Speed  •  "
+		.. formatSpeed(speed)
+
+	--------------------------------------------------
+	-- CANCEL OLD AUTO HIDE
+	--------------------------------------------------
+
+	if hideTask then
+		task.cancel(hideTask)
+		hideTask = nil
+	end
+
+	--------------------------------------------------
+	-- SHOW UI
+	--------------------------------------------------
 
 	if not panel.Visible then
 		showPanel()
+	else
+		showing = true
+
+		panel.Position = UDim2.new(0.5, 0, 0, 18)
+		panel.BackgroundTransparency = 0.28
+
+		biomeName.TextTransparency = 0
+		recommended.TextTransparency = 0
 	end
+
+	--------------------------------------------------
+	-- AUTO HIDE
+	--------------------------------------------------
+
+	hideTask = task.delay(AUTO_HIDE_TIME, function()
+
+		hideTask = nil
+
+		if panel.Visible then
+			hidePanel()
+		end
+
+	end)
+
 end)
 
+--------------------------------------------------
+-- READY
+--------------------------------------------------
+
 event:FireServer("Ready")
+```

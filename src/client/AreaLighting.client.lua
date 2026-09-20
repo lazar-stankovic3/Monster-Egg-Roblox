@@ -52,13 +52,50 @@ local tweenInfo = TweenInfo.new(
 	Enum.EasingDirection.Out
 )
 
+-- Preserve the starting lighting before any area profile is applied.
+local defaultProperties = {}
+local activeTweens = {}
+
+local function rememberDefaults(object, propertyNames)
+	local properties = {}
+	for _, name in ipairs(propertyNames) do
+		properties[name] = object[name]
+	end
+	defaultProperties[object] = properties
+end
+
+rememberDefaults(Lighting, {
+	"Brightness", "ClockTime", "ExposureCompensation", "Ambient", "OutdoorAmbient",
+})
+rememberDefaults(atmosphere, { "Density", "Offset", "Color", "Decay", "Glare", "Haze" })
+rememberDefaults(colorCorrection, { "Brightness", "Contrast", "Saturation", "TintColor" })
+rememberDefaults(bloom, { "Intensity", "Size", "Threshold" })
+
+local function resetLighting()
+	for object, tween in pairs(activeTweens) do
+		tween:Cancel()
+		activeTweens[object] = nil
+	end
+	for object, properties in pairs(defaultProperties) do
+		for name, value in pairs(properties) do
+			object[name] = value
+		end
+	end
+	currentArea = nil
+	elapsed = 0
+end
+
 local function tweenObject(object, properties)
+	if activeTweens[object] then
+		activeTweens[object]:Cancel()
+	end
 	local tween = TweenService:Create(
 		object,
 		tweenInfo,
 		properties
 	)
 
+	activeTweens[object] = tween
 	tween:Play()
 
 	return tween
@@ -194,6 +231,11 @@ local function updateArea()
 		return
 	end
 
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
 	local rootPart =
 		character:FindFirstChild("HumanoidRootPart")
 
@@ -212,6 +254,38 @@ local function updateArea()
 
 		applyProfile(areaName)
 	end
+end
+
+local deathConnection = nil
+
+local function onCharacterAdded(character)
+	if deathConnection then
+		deathConnection:Disconnect()
+		deathConnection = nil
+	end
+	resetLighting()
+
+	local humanoid = character:WaitForChild("Humanoid")
+	if player.Character ~= character then
+		return
+	end
+	deathConnection = humanoid.Died:Connect(resetLighting)
+	if humanoid.Health <= 0 then
+		resetLighting()
+	end
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+player.CharacterRemoving:Connect(function()
+	if deathConnection then
+		deathConnection:Disconnect()
+		deathConnection = nil
+	end
+	resetLighting()
+end)
+
+if player.Character then
+	task.spawn(onCharacterAdded, player.Character)
 end
 
 RunService.Heartbeat:Connect(function(deltaTime)
