@@ -1000,17 +1000,32 @@ return SizeConfig
 ]]></string>
         </Properties>
       </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
+          <string name="Name">TreadmillConfig</string>
+          <string name="Source"><![CDATA[local Config = {}
+Config.Levels = {
+	{ Name = "Starter", Cost = 0, SpeedGain = 20, Color = Color3.fromRGB(110, 120, 130) },
+	{ Name = "Metal", Cost = 1000, SpeedGain = 60, Color = Color3.fromRGB(160, 175, 190) },
+	{ Name = "Turbo", Cost = 10000, SpeedGain = 200, Color = Color3.fromRGB(230, 120, 35) },
+	{ Name = "Neon", Cost = 100000, SpeedGain = 700, Color = Color3.fromRGB(55, 230, 190) },
+	{ Name = "Void", Cost = 1000000, SpeedGain = 2000, Color = Color3.fromRGB(145, 65, 220) },
+}
+return Config
+]]></string>
+        </Properties>
+      </Item>
     </Item>
-    <Item class="RemoteEvent" referent="12">
+    <Item class="RemoteEvent" referent="13">
       <Properties>
         <string name="Name">PlaceEggEvent</string>
       </Properties>
     </Item>
-    <Item class="Folder" referent="13">
+    <Item class="Folder" referent="14">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="14">
+      <Item class="ModuleScript" referent="15">
         <Properties>
           <string name="Name">Hello</string>
           <string name="Source"><![CDATA[return function()
@@ -1021,15 +1036,15 @@ end
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="15">
+  <Item class="ServerScriptService" referent="16">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="16">
+    <Item class="Folder" referent="17">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="17">
+      <Item class="ModuleScript" referent="18">
         <Properties>
           <string name="Name">BiomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -1194,7 +1209,7 @@ return BiomeService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="18">
+      <Item class="Script" referent="19">
         <Properties>
           <string name="Name">BiomeSystem</string>
           <token name="RunContext">0</token>
@@ -1203,7 +1218,7 @@ BiomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="19">
+      <Item class="ModuleScript" referent="20">
         <Properties>
           <string name="Name">EggInventoryService</string>
           <string name="Source"><![CDATA[-- Server-owned inventory records; Tools are replaceable views of those records.
@@ -1406,7 +1421,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="20">
+      <Item class="Script" referent="21">
         <Properties>
           <string name="Name">EggPlacementSystem</string>
           <token name="RunContext">0</token>
@@ -1477,7 +1492,7 @@ remote:SetAttribute("ServerReady", true)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="21">
+      <Item class="Script" referent="22">
         <Properties>
           <string name="Name">EggSystem</string>
           <token name="RunContext">0</token>
@@ -2951,7 +2966,7 @@ print(
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="22">
+      <Item class="ModuleScript" referent="23">
         <Properties>
           <string name="Name">GuardianHitService</string>
           <string name="Source"><![CDATA[-- Server-only temporary ragdoll. Original joints and movement settings are restored.
@@ -3150,7 +3165,7 @@ return HitService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="23">
+      <Item class="Script" referent="24">
         <Properties>
           <string name="Name">GuardianService</string>
           <token name="RunContext">0</token>
@@ -3420,7 +3435,7 @@ print("[GuardianService] Phase 8 guardian service loaded.")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="24">
+      <Item class="ModuleScript" referent="25">
         <Properties>
           <string name="Name">HatchService</string>
           <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
@@ -3518,7 +3533,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="25">
+      <Item class="ModuleScript" referent="26">
         <Properties>
           <string name="Name">IncomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -3567,7 +3582,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="26">
+      <Item class="Script" referent="27">
         <Properties>
           <string name="Name">IncomeSystem</string>
           <token name="RunContext">0</token>
@@ -3576,7 +3591,7 @@ IncomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="27">
+      <Item class="ModuleScript" referent="28">
         <Properties>
           <string name="Name">MonsterService</string>
           <string name="Source">local ServerStorage = game:GetService("ServerStorage")
@@ -3683,7 +3698,7 @@ end
 return Service</string>
         </Properties>
       </Item>
-      <Item class="Script" referent="28">
+      <Item class="Script" referent="29">
         <Properties>
           <string name="Name">PlayerStats</string>
           <token name="RunContext">0</token>
@@ -3766,7 +3781,7 @@ local function setupPlayer(player)
 
 	local cash = Instance.new("NumberValue")
 	cash.Name = "Cash"
-	cash.Value = 0
+	cash.Value = 1000
 	cash.Parent = stats
 
 	-------------------------------
@@ -3842,7 +3857,7 @@ end
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="29">
+      <Item class="ModuleScript" referent="30">
         <Properties>
           <string name="Name">PlotService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -3972,7 +3987,7 @@ return PlotService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="30">
+      <Item class="Script" referent="31">
         <Properties>
           <string name="Name">PlotSystem</string>
           <token name="RunContext">0</token>
@@ -3981,200 +3996,303 @@ PlotService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="31">
+      <Item class="ModuleScript" referent="32">
+        <Properties>
+          <string name="Name">TreadmillService</string>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage.Modules:WaitForChild("TreadmillConfig"))
+local PlotService = require(script.Parent:WaitForChild("PlotService"))
+local Service = {}
+local states = {}
+local locks = {}
+local blockedZones = {}
+local started = false
+local jumpEvent
+
+local function release(player, jumped)
+	local lock = locks[player]
+	if not lock then return end
+	locks[player] = nil
+	blockedZones[player] = lock.zone
+	if lock.root.Parent then
+		lock.root.Anchored = lock.anchored
+		lock.root.AssemblyLinearVelocity = Vector3.zero
+		lock.root.AssemblyAngularVelocity = Vector3.zero
+	end
+	if lock.humanoid.Parent then lock.humanoid.AutoRotate = lock.autoRotate end
+	if jumped and lock.root.Parent and lock.humanoid.Health > 0 then
+		local jumpSpeed = if lock.humanoid.UseJumpPower then lock.humanoid.JumpPower
+			else math.sqrt(2 * workspace.Gravity * lock.humanoid.JumpHeight)
+		lock.root.AssemblyLinearVelocity = Vector3.new(0, jumpSpeed, 0)
+	end
+	player:SetAttribute("TreadmillLocked", false)
+	if jumped and player.Parent == Players then jumpEvent:FireClient(player) end
+end
+
+local function lockToZone(player, zone, root, humanoid)
+	if locks[player] or root.Anchored or blockedZones[player] == zone then return false end
+	locks[player] = { root = root, humanoid = humanoid, zone = zone,
+		anchored = root.Anchored, autoRotate = humanoid.AutoRotate }
+	root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+	root.Anchored = true
+	humanoid.AutoRotate = false
+	-- Zone bottom is the belt surface; retain the character's correct standing height.
+	local height = humanoid.HipHeight + root.Size.Y / 2
+	if humanoid.RigType == Enum.HumanoidRigType.R6 then
+		local leg = player.Character:FindFirstChild("Left Leg")
+		height += if leg then leg.Size.Y else 2
+	end
+	root.CFrame = zone.CFrame * CFrame.new(0, -zone.Size.Y / 2 + height, 0)
+	player:SetAttribute("TreadmillLocked", true)
+	return true
+end
+
+local function finite(n)
+	return type(n) == "number" and n == n and math.abs(n) < math.huge
+end
+
+local function contains(zone, point)
+	local p = zone.CFrame:PointToObjectSpace(point)
+	local half = zone.Size / 2
+	return math.abs(p.X) <= half.X and math.abs(p.Y) <= half.Y and math.abs(p.Z) <= half.Z
+end
+
+local function makeModel(plot, level, owner)
+	local marker = plot:FindFirstChild("TreadmillPos")
+	assert(marker and marker:IsA("BasePart"), "Plot needs TreadmillPos Part: " .. plot.Name)
+	local definition = Config.Levels[level]
+	local folder = ServerStorage:FindFirstChild("TreadmillModels")
+	local template = folder and folder:FindFirstChild(definition.Name)
+	local model
+	if template and template:IsA("Model") then
+		model = template:Clone()
+		for _, item in ipairs(model:GetDescendants()) do
+			if item:IsA("LuaSourceContainer") or item:IsA("Constraint") or item:IsA("JointInstance")
+				or item:IsA("BodyMover") or item:IsA("ProximityPrompt") then item:Destroy() end
+		end
+		for _, item in ipairs(model:GetDescendants()) do
+			if item:IsA("BasePart") then item.Anchored = true end
+		end
+		model:PivotTo(marker.CFrame)
+	else
+		model = Instance.new("Model")
+		local function part(name, size, position, color)
+			local p = Instance.new("Part")
+			p.Name, p.Size, p.Color = name, size, color
+			p.Anchored = true
+			p.CFrame = marker.CFrame * CFrame.new(position)
+			p.Parent = model
+			return p
+		end
+		part("Deck", Vector3.new(5, 0.5, 7), Vector3.new(0, 0.25, 0), definition.Color)
+		part("Belt", Vector3.new(4, 0.12, 6), Vector3.new(0, 0.56, 0), Color3.fromRGB(35, 35, 40))
+		for _, x in ipairs({-2.2, 2.2}) do
+			part("Support", Vector3.new(0.25, 3.5, 0.25), Vector3.new(x, 2, -2.5), definition.Color)
+		end
+		part("Handlebar", Vector3.new(4.6, 0.3, 0.3), Vector3.new(0, 3.7, -2.5), definition.Color)
+		part("TrainingZone", Vector3.new(4, 6, 6), Vector3.new(0, 3.5, 0), definition.Color)
+		model:SetAttribute("Placeholder", true)
+	end
+	local zone = model:FindFirstChild("TrainingZone")
+	if not zone or not zone:IsA("BasePart") then model:Destroy(); error("Treadmill requires direct TrainingZone Part") end
+	zone.Anchored, zone.CanCollide, zone.CanTouch, zone.CanQuery = true, false, false, false
+	zone.Transparency = 1
+	model.Name = "OwnedTreadmill"
+	model:SetAttribute("ManagedTreadmill", true)
+	model:SetAttribute("OwnerUserId", owner)
+	model:SetAttribute("Level", level)
+	model:SetAttribute("SpeedGain", definition.SpeedGain)
+	return model
+end
+
+local function publish(player, state)
+	local definition = Config.Levels[state.level]
+	player:SetAttribute("TreadmillLevel", state.level)
+	player:SetAttribute("OwnedTreadmill", definition.Name)
+	state.plot:SetAttribute("TreadmillLevel", state.level)
+	state.prompt.ObjectText = definition.Name .. " | +" .. definition.SpeedGain .. " Speed/sec"
+	local nextLevel = Config.Levels[state.level + 1]
+	state.prompt.ActionText = if nextLevel then "Upgrade: " .. nextLevel.Name .. " ($" .. nextLevel.Cost .. ")" else "MAX LEVEL"
+	state.prompt.Enabled = nextLevel ~= nil
+end
+
+function Service.TryUpgrade(player)
+	local state = states[player]
+	if not state or not state.model or not state.prompt or not PlotService.IsOwner(player, state.plot) then return false end
+	local now = os.clock()
+	if now - (state.lastPurchase or -math.huge) < 0.75 then return false end
+	state.lastPurchase = now
+	local nextLevel = state.level + 1 -- No client-supplied level or price, ever.
+	local definition = Config.Levels[nextLevel]
+	if not definition then return false end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not humanoid or humanoid.Health <= 0
+		or (root.Position - state.prompt.Parent.Position).Magnitude > 12 then return false end
+	local stats = player:FindFirstChild("Stats")
+	local cash = stats and stats:FindFirstChild("Cash")
+	if not cash or not cash:IsA("NumberValue") or not finite(cash.Value) or cash.Value < definition.Cost then
+		player:SetAttribute("TreadmillPurchaseStatus", "NotEnoughCash")
+		return false
+	end
+	-- Prepare before charging; no yielding between validation and commit.
+	local ok, model = pcall(makeModel, state.plot, nextLevel, player.UserId)
+	if not ok then warn("[TreadmillService] " .. tostring(model)); return false end
+	cash.Value -= definition.Cost
+	release(player, false)
+	state.model:Destroy()
+	state.model, state.level = model, nextLevel
+	model.Parent = state.plot
+	publish(player, state)
+	player:SetAttribute("TreadmillPurchaseStatus", "Purchased")
+	return true
+end
+
+local function cleanup(state)
+	if state.connection then state.connection:Disconnect() end
+	if state.prompt then state.prompt:Destroy() end
+	if state.model then state.model:Destroy() end
+end
+
+local function ensurePlot(player)
+	local plot = PlotService.GetPlot(player)
+	local state = states[player]
+	if state and state.plot == plot then return state end
+	local level = if state then state.level else 1
+	if state then cleanup(state) end
+	states[player] = nil
+	if not plot then return nil end
+	state = { plot = plot, level = level }
+	states[player] = state
+	local marker = plot:FindFirstChild("TreadmillUpgradePart")
+	if not marker or not marker:IsA("BasePart") then
+		warn("[TreadmillService] " .. plot.Name .. " needs TreadmillUpgradePart (Part). Restart Play after setup.")
+		return state
+	end
+	local ok, model = pcall(makeModel, plot, level, player.UserId)
+	if not ok then warn("[TreadmillService] " .. tostring(model)); return state end
+	state.model = model
+	model.Parent = plot
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TreadmillUpgradePrompt"
+	prompt.MaxActivationDistance = 10
+	prompt.HoldDuration = 0.5
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = marker
+	state.prompt = prompt
+	state.connection = prompt.Triggered:Connect(function(who)
+		if who == player then Service.TryUpgrade(player) end
+	end)
+	publish(player, state)
+	return state
+end
+
+function Service.Start()
+	if started then return end
+	started = true
+	PlotService.Start()
+	jumpEvent = ReplicatedStorage:FindFirstChild("TreadmillJumpEvent")
+	if not jumpEvent then
+		jumpEvent = Instance.new("RemoteEvent")
+		jumpEvent.Name = "TreadmillJumpEvent"
+		jumpEvent.Parent = ReplicatedStorage
+	end
+	assert(jumpEvent:IsA("RemoteEvent"), "TreadmillJumpEvent must be a RemoteEvent")
+	jumpEvent.OnServerEvent:Connect(function(player) release(player, true) end)
+	Players.PlayerRemoving:Connect(function(player)
+		release(player, false)
+		blockedZones[player] = nil
+		if states[player] then cleanup(states[player]); states[player] = nil end
+	end)
+	local elapsed = 0
+	RunService.Heartbeat:Connect(function(dt)
+		elapsed += dt
+		if elapsed < 0.25 then return end
+		elapsed %= 0.25
+		for _, player in ipairs(Players:GetPlayers()) do
+			local state = ensurePlot(player)
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local stats = player:FindFirstChild("Stats")
+			local speed = stats and stats:FindFirstChild("Speed")
+			local gain = 0
+			local lock = locks[player]
+			if lock and (lock.root ~= root or not humanoid or humanoid.Health <= 0
+				or not lock.zone:IsDescendantOf(workspace)) then release(player, false) end
+			local blocked = blockedZones[player]
+			if blocked and (not root or not blocked:IsDescendantOf(workspace) or not contains(blocked, root.Position)) then
+				blockedZones[player] = nil
+			end
+			local trainingZone
+			if root and humanoid and humanoid.Health > 0 and speed and speed:IsA("NumberValue") then
+				if state and state.model and state.model.Parent == state.plot and PlotService.IsOwner(player, state.plot)
+					and contains(state.model.TrainingZone, root.Position) then
+					gain = Config.Levels[state.level].SpeedGain
+					trainingZone = state.model.TrainingZone
+				else
+					-- Existing public treadmills remain usable; overlapping zones never stack.
+					local folder = workspace:FindFirstChild("Treadmills")
+					for _, model in ipairs(if folder then folder:GetChildren() else {}) do
+						local zone = model:FindFirstChild("TrainingZone")
+						local rate = model:GetAttribute("SpeedGain") or 1
+						local owner = model:GetAttribute("OwnerUserId")
+						if model:IsA("Model") and zone and zone:IsA("BasePart") and finite(rate) and rate > 0
+							and (owner == nil or owner == 0 or owner == player.UserId) and contains(zone, root.Position) then
+							if rate > gain then gain, trainingZone = rate, zone end
+						end
+					end
+				end
+				if locks[player] and locks[player].zone ~= trainingZone then release(player, false) end
+				if trainingZone and not locks[player] then lockToZone(player, trainingZone, root, humanoid) end
+				if not locks[player] then gain = 0 end
+				if finite(speed.Value) and finite(speed.Value + gain * 0.25) then speed.Value += gain * 0.25 end
+			end
+			player:SetAttribute("TrainingSpeedPerSecond", gain)
+		end
+	end)
+end
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="33">
         <Properties>
           <string name="Name">TreadmillSystem</string>
           <token name="RunContext">0</token>
-          <string name="Source">local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
-local treadmillFolder = workspace:WaitForChild("Treadmills")
-
-local TRAIN_INTERVAL = 0.25
-
--- player = treadmill
-local playersTraining = {}
-
--- Sprečava više Touch eventova
-local touchCounts = {}
-
-local function getPlayerFromHit(hit)
-
-	local character = hit:FindFirstAncestorOfClass("Model")
-
-	if not character then
-		return nil
-	end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-
-	if not humanoid then
-		return nil
-	end
-
-	return Players:GetPlayerFromCharacter(character)
-end
-
-local function setupTreadmill(treadmill)
-
-	local trainingZone = treadmill:FindFirstChild("TrainingZone")
-
-	if not trainingZone then
-		warn(treadmill.Name .. " nema TrainingZone")
-		return
-	end
-
-	----------------------------------
-	-- PLAYER ENTERS
-	----------------------------------
-
-	trainingZone.Touched:Connect(function(hit)
-
-		local player = getPlayerFromHit(hit)
-
-		if not player then
-			return
-		end
-
-		touchCounts[player] = touchCounts[player] or {}
-		touchCounts[player][trainingZone] =
-			(touchCounts[player][trainingZone] or 0) + 1
-
-		playersTraining[player] = treadmill
-	end)
-
-	----------------------------------
-	-- PLAYER LEAVES
-	----------------------------------
-
-	trainingZone.TouchEnded:Connect(function(hit)
-
-		local player = getPlayerFromHit(hit)
-
-		if not player then
-			return
-		end
-
-		if not touchCounts[player] then
-			return
-		end
-
-		local currentCount =
-			touchCounts[player][trainingZone] or 0
-
-		currentCount -= 1
-
-		if currentCount &lt;= 0 then
-
-			touchCounts[player][trainingZone] = nil
-
-			if playersTraining[player] == treadmill then
-				playersTraining[player] = nil
-			end
-
-		else
-
-			touchCounts[player][trainingZone] = currentCount
-
-		end
-	end)
-end
-
-----------------------------------
--- SETUP
-----------------------------------
-
-for _, treadmill in ipairs(treadmillFolder:GetChildren()) do
-
-	if treadmill:IsA("Model") then
-		setupTreadmill(treadmill)
-	end
-
-end
-
-treadmillFolder.ChildAdded:Connect(function(treadmill)
-
-	if treadmill:IsA("Model") then
-		setupTreadmill(treadmill)
-	end
-
-end)
-
-----------------------------------
--- TRAINING LOOP
-----------------------------------
-
-task.spawn(function()
-
-	while true do
-
-		task.wait(TRAIN_INTERVAL)
-
-		for player, treadmill in pairs(playersTraining) do
-
-			if not player.Parent then
-				playersTraining[player] = nil
-				continue
-			end
-
-			local stats = player:FindFirstChild("Stats")
-
-			if not stats then
-				continue
-			end
-
-			local speed = stats:FindFirstChild("Speed")
-
-			if not speed then
-				continue
-			end
-
-			local gain =
-				treadmill:GetAttribute("SpeedGain") or 1
-
-			speed.Value += gain * TRAIN_INTERVAL
-
-		end
-
-	end
-
-end)
-
-----------------------------------
--- CLEANUP
-----------------------------------
-
-Players.PlayerRemoving:Connect(function(player)
-
-	playersTraining[player] = nil
-	touchCounts[player] = nil
-
-end)</string>
+          <string name="Source"><![CDATA[local TreadmillService = require(script.Parent:WaitForChild("TreadmillService"))
+TreadmillService.Start()
+]]></string>
         </Properties>
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="32">
+  <Item class="SoundService" referent="34">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="33">
+  <Item class="StarterPlayer" referent="35">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="34">
+    <Item class="StarterPlayerScripts" referent="36">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="35">
+      <Item class="LocalScript" referent="37">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[print("Hello world, from client!")
 ]]></string>
         </Properties>
-        <Item class="LocalScript" referent="36">
+        <Item class="LocalScript" referent="38">
           <Properties>
             <string name="Name">AreaLighting</string>
             <string name="Source">local Players = game:GetService("Players")
@@ -4407,7 +4525,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 end)</string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="37">
+        <Item class="LocalScript" referent="39">
           <Properties>
             <string name="Name">BiomeUI</string>
             <string name="Source">local Players = game:GetService("Players")
@@ -4702,7 +4820,7 @@ end)
 event:FireServer("Ready")</string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="38">
+        <Item class="LocalScript" referent="40">
           <Properties>
             <string name="Name">CustomMovementAnimations</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4747,7 +4865,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="39">
+        <Item class="LocalScript" referent="41">
           <Properties>
             <string name="Name">EggPlacement</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4870,7 +4988,7 @@ player.CharacterRemoving:Connect(clear)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="40">
+        <Item class="LocalScript" referent="42">
           <Properties>
             <string name="Name">GuardianRagdoll</string>
             <string name="Source"><![CDATA[-- Match the local Humanoid/animation controller to the server's hit state.
@@ -4942,7 +5060,7 @@ if player.Character then task.spawn(setup, player.Character) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="41">
+        <Item class="LocalScript" referent="43">
           <Properties>
             <string name="Name">LavaAnimation (Thermal Chamber)</string>
             <string name="Source">local RunService = game:GetService("RunService")
@@ -5018,16 +5136,119 @@ RunService.RenderStepped:Connect(function(dt)
 end)</string>
           </Properties>
         </Item>
+        <Item class="LocalScript" referent="44">
+          <Properties>
+            <string name="Name">TreadmillAnimation</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character, humanoid, animator, track, animation, diedConnection
+local generation = 0
+
+local function stop()
+	if track then
+		track:Stop(0.15)
+		track:Destroy()
+		track = nil
+	end
+	if animation then animation:Destroy(); animation = nil end
+end
+
+local function update()
+	if not player:GetAttribute("TreadmillLocked") or not humanoid or humanoid.Health <= 0
+		or character ~= player.Character or not animator then
+		stop()
+		return
+	end
+	if track then return end
+	-- Match the existing movement animation instead of relying on Running speed:
+	-- the treadmill holds the root still, so the normal Animate script sees zero speed.
+	local animate = character:FindFirstChild("Animate")
+	local run = animate and animate:FindFirstChild("run")
+	local source = run and run:FindFirstChildWhichIsA("Animation", true)
+	local id = source and source.AnimationId
+	if not id or id == "" then
+		id = if humanoid.RigType == Enum.HumanoidRigType.R6
+			then "rbxassetid://180426354" else "rbxassetid://110696808533851"
+	end
+	animation = Instance.new("Animation")
+	animation.AnimationId = id
+	local ok, result = pcall(function() return animator:LoadAnimation(animation) end)
+	if not ok then
+		warn("[TreadmillAnimation] " .. tostring(result))
+		stop()
+		return
+	end
+	track = result
+	track.Looped = true
+	track.Priority = Enum.AnimationPriority.Action
+	track:Play(0.15, 1, 1)
+end
+
+local function setup(nextCharacter)
+	generation += 1
+	local current = generation
+	stop()
+	if diedConnection then diedConnection:Disconnect(); diedConnection = nil end
+	character, humanoid, animator = nextCharacter, nil, nil
+	local nextHumanoid = nextCharacter:WaitForChild("Humanoid", 10)
+	local nextAnimator = nextHumanoid and nextHumanoid:WaitForChild("Animator", 10)
+	if current ~= generation or player.Character ~= nextCharacter then return end
+	if not nextHumanoid or not nextAnimator then return end
+	humanoid, animator = nextHumanoid, nextAnimator
+	diedConnection = humanoid.Died:Connect(stop)
+	update()
+end
+
+player:GetAttributeChangedSignal("TreadmillLocked"):Connect(update)
+player.CharacterAdded:Connect(setup)
+player.CharacterRemoving:Connect(function()
+	generation += 1
+	stop()
+	if diedConnection then diedConnection:Disconnect(); diedConnection = nil end
+	character, humanoid, animator = nil, nil, nil
+end)
+if player.Character then task.spawn(setup, player.Character) end
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="45">
+          <Properties>
+            <string name="Name">TreadmillControls</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local event = ReplicatedStorage:WaitForChild("TreadmillJumpEvent", 15)
+if not event then warn("[Treadmill] Server did not initialize TreadmillJumpEvent"); return end
+local lastJump = 0
+UserInputService.JumpRequest:Connect(function()
+	if not player:GetAttribute("TreadmillLocked") then return end
+	local now = os.clock()
+	if now - lastJump < 0.2 then return end
+	lastJump = now
+	event:FireServer()
+end)
+event.OnClientEvent:Connect(function()
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.Health > 0 then
+		humanoid.Jump = true
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+]]></string>
+          </Properties>
+        </Item>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="42">
+  <Item class="Workspace" referent="46">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
       <bool name="NeedsPivotMigration">false</bool>
     </Properties>
-    <Item class="Part" referent="43">
+    <Item class="Part" referent="47">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

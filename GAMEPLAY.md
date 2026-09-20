@@ -2,7 +2,7 @@
 
 ## Važeći status — 2026-09-20
 
-Korisnik je izričito potvrdio da je testirao sve dosadašnje faze. **Faze 1–11 su završene i potvrđene**, uključujući ranije odložene provere i poslednje ispravke. Faza 13 je potvrđena korisnikovim testiranjem. Aktivna je faza 14 — IncomeService; implementirana i čeka Studio potvrdu prema docs/FAZA_14.md. Ovaj status zamenjuje sve ranije navode o nepotvrđenim fazama u istorijskim zapisima ispod.
+Korisnik je izričito potvrdio da je testirao sve dosadašnje faze. **Faze 1–11 su završene i potvrđene**, uključujući ranije odložene provere i poslednje ispravke. Faza 13 je potvrđena korisnikovim testiranjem. Faza 14 je potvrđena korisnikovim testiranjem. Aktivna je faza 15 — treadmill upgrade-i isključivo redom, privremeni modeli i zaključavanje na sredini do skoka; implementirana i čeka Studio potvrdu prema docs/FAZA_15.md. Ovaj status zamenjuje sve ranije navode o nepotvrđenim fazama u istorijskim zapisima ispod.
 
 
 ## Gameplay loop
@@ -34,7 +34,7 @@ Igrac trenira Speed na treadmill-u, odlazi u biome, krade monster egg i bezi od 
 - Hatch timer primeri: Common 3s, Rare 8s, Epic 15s, Legendary 30s; ostale definisati kasnije. Countdown iznad jajeta. Hatchling Egg monster pool: 70% Green Slime, 20% Leaf Bunny, 8% Baby Goblin, 2% Forest Dragon.
 - Monster config: MonsterName, Biome, Rarity, BaseIncome, ModelName, Icon, IndexId. FinalIncome = BaseIncome * RarityMultiplier * SizeMultiplier. Primer: 2 * 2.5 * 1.5 = 7.5/sec. Pravilo nasledjivanja egg/monster rarity precizirati u odgovarajucoj fazi.
 - Centralni IncomeService sabira income svih igracevih monstera i svake sekunde dodaje Cash.
-- Treadmill shop (Cost / SpeedGain): Starter 0/1; Metal 1000/3; Turbo 10000/10; Neon 100000/35; Void 1000000/100. Server naplacuje, cuva ownership i postavlja treadmill na plot.
+- Treadmill shop (Cost / SpeedGain): Starter 0/20; Metal 1000/60; Turbo 10000/200; Neon 100000/700; Void 1000000/2000. Server naplacuje, cuva ownership i postavlja treadmill na plot.
 - Postojeci Index UI treba povezati: grupisanje po biome-u, zakljucano ? / ???, broj otkljucanih po biome-u i globalno. Detalji: Monster Name, Rarity, Biome, Base Income, Best Size Found. Prvi hatch otkljucava; novi bolji size unapredjuje zapis. DataStore trajno pamti.
 - Save: Speed, Cash, OwnedTreadmill, IndexUnlocks, EggInventory, PlacedEggs, Monsters, Plot upgrades. Autosave, PlayerRemoving, BindToClose, stabilni podaci.
 - Kasnije offline income: LastLogoutTime, vreme odsustva, income monstera, cap 6h i prikaz zarade po povratku; bez duplog isplacivanja.
@@ -85,3 +85,5 @@ Aktivna faza je 11, prema docs/FAZA_11.md. Provere faza 9 i 10 ostaju otvorene. 
 
 
 Korisnik je potvrdio da se monster stvorio u fazi 12 i zatražio nasleđivanje veličine bez umanjivanja prema otisku jajeta. Monster koristi isti Scale kao jaje (0.7/1/1.4/1.9/2.6). Ostale provere faze 12 ostaju otvorene.
+
+Po korisničkom zahtevu početni Cash je 1000, a Starter treadmill daje 20 Speed/sec. Svi nivoi su proporcionalno balansirani prema Starter-u: 20/60/200/700/2000 Speed/sec, uz nepromenjene cene i kupovinu isključivo redom.

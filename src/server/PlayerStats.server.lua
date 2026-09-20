@@ -77,7 +77,7 @@ local function setupPlayer(player)
 
 	local cash = Instance.new("NumberValue")
 	cash.Name = "Cash"
-	cash.Value = 0
+	cash.Value = 1000
 	cash.Parent = stats
 
 	-------------------------------

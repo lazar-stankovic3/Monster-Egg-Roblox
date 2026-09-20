@@ -1,6 +1,6 @@
 # Faza 14 — IncomeService
 
-Status 2026-09-20: implementirano, čeka Studio potvrdu. Korisnik je potvrdio fazu 13 i zatražio nastavak.
+Status 2026-09-20: potvrđeno korisnikovim Studio testiranjem. Korisnik je potvrdio fazu 13 i zatražio nastavak.
 
 IncomeSystem pokreće IncomeService, oba u ServerScriptService.Server. Jedna centralna Heartbeat veza na interval od jedne sekunde računa zbir preko MonsterService.GetIncome(player) i dodaje ga u Player.Stats.Cash. Start je idempotentan i ne pravi duple isplate ako se pozove ponovo.
 
