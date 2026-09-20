@@ -16,8 +16,19 @@ if not activeFolder then
 	activeFolder.Parent = workspace
 end
 
-local signals = ServerScriptService:WaitForChild("GameSignals")
-local forceDropEvent = signals:WaitForChild("GuardianForceDrop")
+local signals = ServerScriptService:FindFirstChild("GameSignals")
+if not signals then
+	signals = Instance.new("Folder")
+	signals.Name = "GameSignals"
+	signals.Parent = ServerScriptService
+end
+assert(signals:IsA("Folder"), "ServerScriptService.GameSignals must be a Folder")
+local forceDropEvent = signals:FindFirstChild("GuardianForceDrop")
+if not forceDropEvent then
+	forceDropEvent = Instance.new("BindableEvent")
+	forceDropEvent.Name = "GuardianForceDrop"
+	forceDropEvent.Parent = signals
+end
 assert(forceDropEvent:IsA("BindableEvent"), "GameSignals.GuardianForceDrop must be a BindableEvent")
 
 type Chase = { egg: Model, player: Player, guardian: Model, connection: RBXScriptConnection? }

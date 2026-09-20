@@ -106,14 +106,15 @@ function PlotService.Start()
 				table.remove(waiting, index)
 			end
 		end
-		local plot = assignments[player]
-		assignments[player] = nil
-		if plot then
-			resetPlot(plot, 0)
-		end
-		player:SetAttribute("PlotName", nil)
-		player:SetAttribute("PlotStatus", nil)
-		assignWaiting()
+		-- Let persistence listeners synchronously snapshot the plot before it is cleared.
+		task.defer(function()
+			local plot = assignments[player]
+			assignments[player] = nil
+			if plot then resetPlot(plot, 0) end
+			player:SetAttribute("PlotName", nil)
+			player:SetAttribute("PlotStatus", nil)
+			assignWaiting()
+		end)
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
 		enqueue(player)

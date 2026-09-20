@@ -1,6 +1,6 @@
 # Faza 16 — IndexUi
 
-Status 2026-09-20: implementirano, čeka Studio potvrdu. Korisnik je potvrdio fazu 15 i dostavio strukturu postojećeg StarterGui.IndexUi. Thermal Chamber u Index-u treba da se zove Volcano.
+Status 2026-09-20: implementirano, čeka Studio potvrdu. Čuvanje Index-a je u fazi 17 prebačeno u objedinjeni PlayerData store. Korisnik je potvrdio fazu 15 i dostavio strukturu postojećeg StarterGui.IndexUi. Thermal Chamber u Index-u treba da se zove Volcano.
 
 ## Postojeći UI
 
@@ -20,11 +20,9 @@ IndexService.RecordHatch poziva se samo na serveru nakon stvarne zamene jajeta m
 
 Red veličina je Tiny < Normal < Large < Huge < Titanic. Ponovni hatch iste vrste ne povećava broj unlock-a; samo veća veličina poboljšava zapis. Svi klijentski prikazi čitaju server repliku. Nema remote-a kojim klijent može tražiti otključavanje.
 
-## DataStore samo za Index
+## Čuvanje Index-a
 
-MonsterEggIndex_v1, ključ u_<UserId>, format {Version=1, Unlocks={IndexId=BestSize}}. Učitavanje i čuvanje imaju do tri pokušaja. Autosave je na 60s kada postoje izmene, plus PlayerRemoving i BindToClose. UpdateAsync spaja postojeće unlock-e i najveće veličine; konkurentna sesija ne može smanjiti napredak. Hatch tokom učitavanja ostaje sačuvan u session zapisu i spaja se sa učitanim podacima.
-
-Ako load ne uspe ili je format nepoznat, servis NE upisuje početno prazno stanje preko postojećih podataka. Session unlock-i rade, ali se ne čuvaju; UI prikazuje “session only”. Save greška ostavlja podatke za sledeći pokušaj, a UI prikazuje “save pending”. Player.IndexDataStatus daje Loading/Ready/LoadFailed/SaveFailed, uz upozorenje u Output-u.
+Index unlock-i i Best Size sada se čuvaju u `MonsterEggPlayerData_v1` zajedno sa ostalim podacima igrača. Stari `MonsterEggIndex_v1` čita se samo pri prvoj migraciji. `UpdateAsync` zadržava najveći Best Size, a neuspelo ili nepoznato učitavanje blokira save. Detalji i testovi su u docs/FAZA_17.md. `Player.IndexDataStatus` i dalje daje Loading/Ready/LoadFailed/SaveFailed radi postojećeg UI-a.
 
 Za stvaran save test objavi test experience i uključi Game Settings → Security → Enable Studio Access to API Services. Bez dostupnog DataStore-a moguće je testirati samo session unlock. Faza 17 kasnije objedinjuje ovaj Index save sa ostalim podacima; migracija postojećeg Index store-a tada mora sačuvati napredak.
 
@@ -35,7 +33,7 @@ Za stvaran save test objavi test experience i uključi Game Settings → Securit
 3. Klikni otključanu vrstu: ime, katalog rarity, biome, Base Income i Best Size Found su ispravni. Klikni zaključanu: ostaje ???.
 4. Izlegni istu vrstu ponovo: brojač ne raste. Veći Size poboljšava Best Size, manji ga ne smanjuje.
 5. Zatvori, otvori i resetuj: nema duplih dugmadi/konekcija i podaci ostaju isti. Proveri panel i scroll na manjoj rezoluciji.
-6. Sa dostupnim DataStore-om sačekaj autosave ili izađi, pa se vrati: unlock-i i Best Size ostaju. Proveri IndexDataStatus=Ready.
+6. Sa dostupnim DataStore-om sačekaj autosave ili izađi, pa se vrati: unlock-i i Best Size ostaju. Proveri IndexDataStatus=Ready i PlayerDataStatus=Ready.
 7. Bez API pristupa proveri session-only stanje, bez rušenja hatch-a i bez pokušaja prepisivanja podataka posle neuspešnog load-a.
 8. Dva igrača imaju različite Index zapise; hatch jednog ne otključava drugom. Prethodni gameplay sistemi i dalje rade.
 

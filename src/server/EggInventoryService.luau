@@ -7,6 +7,19 @@ local Service = {}
 local states = {}
 local fields = { "UID", "EggType", "EggName", "Biome", "Rarity", "Size", "Scale" }
 
+local function validMetadata(data)
+	if type(data) ~= "table" then return false end
+	for _, field in ipairs(fields) do
+		local value = data[field]
+		if field == "Scale" then
+			if type(value) ~= "number" or value ~= value or value <= 0 or value == math.huge then return false end
+		elseif type(value) ~= "string" or value == "" or #value > 128 then
+			return false
+		end
+	end
+	return EggConfig.EggTypes[data.EggType] ~= nil or data.EggType == EggConfig.LegacyBasicEgg.EggType
+end
+
 local function makeTool(player, egg)
 	-- Never clone the live carried assembly: its joints can reference the character
 	-- and its parts can carry velocities/forces from the world simulation.
@@ -142,7 +155,9 @@ function Service.Deposit(player, egg, inventory)
 		local value = egg:GetAttribute(field)
 		if field == "Scale" then
 			if type(value) ~= "number" or value ~= value or value <= 0 or value == math.huge then return false end
-		elseif type(value) ~= "string" or value == "" then return false end
+		elseif type(value) ~= "string" or value == "" then
+			return false
+		end
 	end
 	local uid = egg:GetAttribute("UID")
 	local state = Service.StartPlayer(player, inventory)
@@ -162,6 +177,70 @@ function Service.Deposit(player, egg, inventory)
 	record.Parent = inventory
 	live.Parent = backpack
 	return true
+end
+
+function Service.Restore(player, inventory, records)
+	local state = Service.StartPlayer(player, inventory)
+	if type(records) ~= "table" then return end
+	for index, data in ipairs(records) do
+		if index > 100 then break end
+		if validMetadata(data) and not state.entries[data.UID] then
+			local record = Instance.new("Folder")
+			record.Name = data.UID
+			for _, field in ipairs(fields) do record:SetAttribute(field, data[field]) end
+			record:SetAttribute("OwnerUserId", player.UserId)
+			local ok, template = pcall(makeTool, player, record)
+			if ok then
+				state.entries[data.UID] = { record = record, template = template }
+				record.Parent = inventory
+			else
+				record:Destroy()
+				warn("[EggInventoryService] Restore skipped: " .. tostring(template))
+			end
+		end
+	end
+	reconcile(player, state)
+end
+
+function Service.Snapshot(player)
+	local state = states[player]
+	local result = {}
+	if not state then return result end
+	for _, entry in pairs(state.entries) do
+		if entry.record.Parent == state.inventory then
+			local data = {}
+			for _, field in ipairs(fields) do data[field] = entry.record:GetAttribute(field) end
+			table.insert(result, data)
+		end
+	end
+	table.sort(result, function(a, b) return a.UID < b.UID end)
+	return result
+end
+
+function Service.CreatePlacedVisual(player, data)
+	if not validMetadata(data) then return nil end
+	local record = Instance.new("Folder")
+	for _, field in ipairs(fields) do record:SetAttribute(field, data[field]) end
+	record:SetAttribute("OwnerUserId", player.UserId)
+	local ok, tool = pcall(makeTool, player, record)
+	record:Destroy()
+	if not ok then return nil end
+	local source = tool:FindFirstChild("EggVisual")
+	local visual = source and source:Clone()
+	tool:Destroy()
+	if not visual then return nil end
+	for _, object in ipairs(visual:GetDescendants()) do
+		if object:IsA("JointInstance") or object:IsA("Constraint") then object:Destroy()
+		elseif object:IsA("BasePart") then
+			object.Anchored = true
+			object.CanCollide, object.CanTouch, object.CanQuery = false, false, true
+		end
+	end
+	for _, field in ipairs(fields) do visual:SetAttribute(field, data[field]) end
+	visual:SetAttribute("OwnerUserId", player.UserId)
+	visual:SetAttribute("Placed", true)
+	visual.Name = data.UID
+	return visual
 end
 
 function Service.GetEquippedEntry(player, uid)
@@ -186,12 +265,16 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	local state = states[player]
 	if not state then return end
-	states[player] = nil
-	for _, connection in ipairs(state.connections) do connection:Disconnect() end
-	for _, entry in pairs(state.entries) do
-		entry.template:Destroy()
-		if entry.live then entry.live:Destroy() end
-	end
+	-- Persistence snapshots PlayerRemoving synchronously; clean runtime objects after it finishes.
+	task.defer(function()
+		if states[player] ~= state then return end
+		states[player] = nil
+		for _, connection in ipairs(state.connections) do connection:Disconnect() end
+		for _, entry in pairs(state.entries) do
+			entry.template:Destroy()
+			if entry.live then entry.live:Destroy() end
+		end
+	end)
 end)
 
 return Service

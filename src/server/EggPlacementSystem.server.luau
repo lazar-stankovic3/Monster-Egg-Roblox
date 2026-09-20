@@ -18,6 +18,7 @@ assert(remote:IsA("RemoteEvent"), "[EggPlacement] ReplicatedStorage.PlaceEggEven
 local lastRequest = {}
 
 remote.OnServerEvent:Connect(function(player, uid, point)
+	if player:GetAttribute("PlayerDataStatus") == "Loading" then return end
 	local now = os.clock()
 	if now - (lastRequest[player] or -math.huge) < 0.15 then return end
 	lastRequest[player] = now

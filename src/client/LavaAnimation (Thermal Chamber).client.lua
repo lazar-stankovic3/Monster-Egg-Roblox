@@ -1,8 +1,17 @@
 local RunService = game:GetService("RunService")
 
-local lavaFloor = workspace:WaitForChild("LavaFloor")
-local texture = lavaFloor:WaitForChild("Texture")
-local light = lavaFloor:WaitForChild("SurfaceLight")
+local lavaFloor = workspace:FindFirstChild("LavaFloor")
+if not lavaFloor then
+	warn("[LavaAnimation] Workspace.LavaFloor nije pronađen; animacija lave je preskočena.")
+	return
+end
+
+local texture = lavaFloor:FindFirstChild("Texture")
+local light = lavaFloor:FindFirstChild("SurfaceLight")
+if not texture or not texture:IsA("Texture") or not light or not light:IsA("SurfaceLight") then
+	warn("[LavaAnimation] LavaFloor mora imati Texture i SurfaceLight; animacija lave je preskočena.")
+	return
+end
 
 -- =========================
 -- POMERANJE LAVE

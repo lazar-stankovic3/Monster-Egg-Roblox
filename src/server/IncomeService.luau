@@ -11,6 +11,7 @@ end
 
 local function payTick()
 	for _, player in ipairs(Players:GetPlayers()) do
+		if player:GetAttribute("PlayerDataStatus") == "Loading" then continue end
 		local income = MonsterService.GetIncome(player)
 		if not finite(income) or income < 0 then income = 0 end
 		player:SetAttribute("CashPerSecond", income)

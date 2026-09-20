@@ -11,16 +11,16 @@ local random = Random.new()
 local started = false
 
 -- Prepare before consuming inventory. Failure leaves the equipped egg untouched.
-function Service.Prepare(egg)
+function Service.Prepare(egg, savedMonsterId)
 	local duration = Config.Timers[egg:GetAttribute("Rarity")]
-	local monsterId = Config.Roll(egg:GetAttribute("EggType"), random)
+	local monsterId = savedMonsterId or Config.Roll(egg:GetAttribute("EggType"), random)
 	if not duration or not monsterId then return nil end
 	local ok, monster = pcall(MonsterService.Create, egg, monsterId)
 	if not ok then warn("[HatchService] " .. tostring(monster)); return nil end
 	return { monster = monster, duration = duration }
 end
 
-function Service.Begin(egg, plot, prepared)
+function Service.Begin(egg, plot, prepared, remainingDuration)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HatchCountdown"
 	gui.Size = UDim2.fromOffset(180, 45)
@@ -36,14 +36,16 @@ function Service.Begin(egg, plot, prepared)
 	label.TextStrokeTransparency = 0.3
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 22
-	label.Text = "Hatching: " .. prepared.duration .. "s"
+	local duration = math.max(0, tonumber(remainingDuration) or prepared.duration)
+	label.Text = "Hatching: " .. math.ceil(duration) .. "s"
 	label.Parent = gui
 	gui.Parent = egg
-	local deadline = workspace:GetServerTimeNow() + prepared.duration
+	local deadline = workspace:GetServerTimeNow() + duration
 	egg:SetAttribute("HatchEndsAt", deadline)
 	egg:SetAttribute("HatchState", "Incubating")
 	prepared.plot, prepared.deadline, prepared.label = plot, deadline, label
 	prepared.owner = egg:GetAttribute("OwnerUserId")
+	egg:SetAttribute("PendingMonsterId", prepared.monster:GetAttribute("MonsterId"))
 	active[egg] = prepared
 end
 

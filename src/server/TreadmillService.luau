@@ -10,6 +10,7 @@ local locks = {}
 local blockedZones = {}
 local started = false
 local jumpEvent
+local restoredLevels = {}
 
 local function release(player, jumped)
 	local lock = locks[player]
@@ -119,6 +120,7 @@ local function publish(player, state)
 end
 
 function Service.TryUpgrade(player)
+	if player:GetAttribute("PlayerDataStatus") == "Loading" then return false end
 	local state = states[player]
 	if not state or not state.model or not state.prompt or not PlotService.IsOwner(player, state.plot) then return false end
 	local now = os.clock()
@@ -161,7 +163,7 @@ local function ensurePlot(player)
 	local plot = PlotService.GetPlot(player)
 	local state = states[player]
 	if state and state.plot == plot then return state end
-	local level = if state then state.level else 1
+	local level = if state then state.level else (restoredLevels[player] or 1)
 	if state then cleanup(state) end
 	states[player] = nil
 	if not plot then return nil end
@@ -190,6 +192,23 @@ local function ensurePlot(player)
 	return state
 end
 
+function Service.SetLevel(player, level)
+	if type(level) ~= "number" or level % 1 ~= 0 or not Config.Levels[level] then return false end
+	restoredLevels[player] = level
+	local state = states[player]
+	if state and state.level ~= level then
+		cleanup(state)
+		states[player] = nil
+		ensurePlot(player)
+	end
+	return true
+end
+
+function Service.GetLevel(player)
+	local state = states[player]
+	return state and state.level or restoredLevels[player] or 1
+end
+
 function Service.Start()
 	if started then return end
 	started = true
@@ -205,7 +224,10 @@ function Service.Start()
 	Players.PlayerRemoving:Connect(function(player)
 		release(player, false)
 		blockedZones[player] = nil
-		if states[player] then cleanup(states[player]); states[player] = nil end
+		task.defer(function()
+			if states[player] then cleanup(states[player]); states[player] = nil end
+			restoredLevels[player] = nil
+		end)
 	end)
 	local elapsed = 0
 	RunService.Heartbeat:Connect(function(dt)
@@ -228,7 +250,8 @@ function Service.Start()
 				blockedZones[player] = nil
 			end
 			local trainingZone
-			if root and humanoid and humanoid.Health > 0 and speed and speed:IsA("NumberValue") then
+			if player:GetAttribute("PlayerDataStatus") ~= "Loading"
+				and root and humanoid and humanoid.Health > 0 and speed and speed:IsA("NumberValue") then
 				if state and state.model and state.model.Parent == state.plot and PlotService.IsOwner(player, state.plot)
 					and contains(state.model.TrainingZone, root.Position) then
 					gain = Config.Levels[state.level].SpeedGain

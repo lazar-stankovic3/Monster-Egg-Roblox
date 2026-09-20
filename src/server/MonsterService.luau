@@ -99,4 +99,29 @@ function Service.GetIncome(player)
 	return total
 end
 
+function Service.AddLabel(monster)
+	if not monster or not monster:IsA("Model") or not monster.PrimaryPart then return end
+	local old = monster:FindFirstChild("MonsterLabel")
+	if old then old:Destroy() end
+	local frame, size = monster:GetBoundingBox()
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "MonsterLabel"
+	gui.Size = UDim2.fromOffset(230, 75)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 120
+	gui.Adornee = monster.PrimaryPart
+	gui.StudsOffsetWorldSpace = frame.Position - monster.PrimaryPart.Position + Vector3.new(0, size.Y / 2 + 1.5, 0)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.3
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 22
+	label.Text = string.format("%s\n%s | %s\n$%g/sec", monster:GetAttribute("MonsterName"),
+		monster:GetAttribute("Rarity"), monster:GetAttribute("Size"), monster:GetAttribute("FinalIncome"))
+	label.Parent = gui
+	gui.Parent = monster
+end
+
 return Service
