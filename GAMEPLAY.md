@@ -25,7 +25,7 @@ Igrac trenira Speed na treadmill-u, odlazi u biome, krade monster egg i bezi od 
 - Carry penalty na calculated WalkSpeed: Tiny/Normal 0%; Large 5%; Huge 10%; Titanic 20%. Speed stat ostaje isti; drop/deposit uklanjaju penalty.
 - Guardian juri samo lopova svog jajeta; pathfinding po potrebi. Prestaje na safe/lobby zoni, drop-u ili smrti; hvatanje izaziva drop. Biome speeds primeri: Hatchling 25, Volcano 45, Void 70. Rarity dodatak primeri: Common 0%, Rare 5%, Epic 10%, Legendary 20%; ostale vrednosti definisati u toj fazi.
 - Deposit stvara vizuelni Egg Tool u Backpack-u sa UID, EggType, Biome, Rarity, Size, Scale; zadrzati i EggName gde treba. Equip prikazuje egg.
-- Plot automatski dobija slobodnog vlasnika (OwnerUserId), pocetno 6 EggSlots. Place Egg ProximityPrompt: validirati plot ownership, udaljenost, slobodan slot i stvarno posedovanje equipovanog Tool-a. Prenos jaja mora spreciti dupliranje.
+- Plot automatski dobija vlasnika (OwnerUserId), početni kapacitet je šest jaja. Na korisnikov zahtev: slobodno postavljanje mišem na Place Part, bez fiksnih slotova i prompta. Preview je providno siv kada je mesto dozvoljeno i crven kada nije. Levi klik postavlja jaje. Server proverava ownership, udaljenost, granice, razmak, kapacitet i stvarni equipovani Tool; prenos sprečava dupliranje.
 - Hatch timer primeri: Common 3s, Rare 8s, Epic 15s, Legendary 30s; ostale definisati kasnije. Countdown iznad jajeta. Hatchling Egg monster pool: 70% Green Slime, 20% Leaf Bunny, 8% Baby Goblin, 2% Forest Dragon.
 - Monster config: MonsterName, Biome, Rarity, BaseIncome, ModelName, Icon, IndexId. FinalIncome = BaseIncome * RarityMultiplier * SizeMultiplier. Primer: 2 * 2.5 * 1.5 = 7.5/sec. Pravilo nasledjivanja egg/monster rarity precizirati u odgovarajucoj fazi.
 - Centralni IncomeService sabira income svih igracevih monstera i svake sekunde dodaje Cash.
@@ -63,4 +63,17 @@ Rojo build prolazi, ali proverava pakovanje, ne fizičko ponašanje u Studio-u. 
 
 Na korisnikov zahtev za nastavak implementirana je faza 9. Nepotvrdjeni Studio testovi faze 8 su ostali odlozeni, bez oznacavanja da su prosli. Aktivna faza je 9, prema docs/FAZA_09.md.
 
-EggInventoryService stvara zapis po UID-u i vizuelni Tool u Backpack-u pri lobby deposit-u. Tool cuva metadata i OwnerUserId, ima zavaren nekolizioni model jajeta i ne moze se rucno ispustiti. Equip premesta istu instancu. Prikaz velikih jaja u ruci ogranicen je na 4 studa, a originalni Size/Scale ostaju sacuvani. Server obnavlja Tool-ove nakon respawna u istoj sesiji. DataStore jos nije implementiran. Sledeci korak je Studio test faze 9, ne faza 10.
+EggInventoryService stvara zapis po UID-u i vizuelni Tool u Backpack-u pri lobby deposit-u. Tool cuva metadata i OwnerUserId, ima zavaren nekolizioni model jajeta i ne moze se rucno ispustiti. Equip premesta istu instancu. Naknadno je na zahtev korisnika uklonjeno ograničenje prikaza: jaje u ruci zadržava punu originalnu veličinu i Size/Scale. Server obnavlja Tool-ove nakon respawna u istoj sesiji. DataStore jos nije implementiran. Sledeci korak je Studio test faze 9, ne faza 10.
+
+## Nastavak rada — 2026-09-20
+
+Na korisnikov zahtev „ajmo dalje” implementirana je faza 10. Provere faze 9 ostaju odložene, bez oznake da su prošle. Ovaj zapis zamenjuje ranije uputstvo da je aktivna faza 9.
+
+PlotService automatski dodeljuje pripremljene Workspace.Plots modele igračima, održava OwnerUserId i šest početnih slotova, oslobađa plot na izlasku i dodeljuje ga sledećem igraču koji čeka. Respawn ne menja plot. Studio mapa zahteva postavku prema docs/FAZA_10.md; postojeći asset-i nisu menjani. Aktivna faza je 10 i čeka Studio potvrdu. Placement ostaje za fazu 11.
+
+
+## Nastavak — slobodno postavljanje, 2026-09-20
+
+Korisnik je izričito zatražio preview i klik bilo gde na svom Place Part-u: providno sivo za dozvoljeno, crveno za nedozvoljeno, bez zelene. Implementirana je faza 11 i PlotService prilagođen postojećim Plot1–Plot6 modelima. Nema generisanja fiksnih slotova; SlotCapacity=6 označava limit jaja. PlacedEggs je namenski runtime folder. Studio mapa nije menjana iz repozitorijuma.
+
+Aktivna faza je 11, prema docs/FAZA_11.md. Provere faza 9 i 10 ostaju otvorene. Hatch ostaje za fazu 12. Preview i postavljeno jaje koriste punu originalnu veličinu Tool-a, bez umanjivanja, uz očuvane Size/Scale atribute. Nema persistence-a do faze 17.

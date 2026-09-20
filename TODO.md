@@ -1,9 +1,9 @@
-# Preostali zadaci
+﻿# Preostali zadaci
 
 ## Trenutni status
 
 - [x] Faza 7: Studio potvrda carry movement penalty-ja.
-- Aktivna faza 9: vizuelni Egg Tool je implementiran; ceka Studio provere prema docs/FAZA_09.md. Korisnik je zatrazio nastavak 2026-09-19; preostale provere faze 8 su odlozene, nisu oznacene kao prosle.
+- Aktivna faza 11: slobodno postavljanje na Place uz sivi/crveni preview; čeka Studio proveru prema docs/FAZA_11.md. Na korisnikov zahtev prilagođena je faza 10. Provere faza 9 i 10 ostaju nepotvrđene.
 - Korisnik je potvrdio da ragdoll radi nakon dodavanja AnimationConstraint podrške. Poslednja izmena protiv sudara jajeta sa odbačenim igračem još čeka potvrdu.
 
 Procitati GAMEPLAY.md pre rada. Implementirati samo aktivnu fazu. Brisati stavku kada je zavrsena i proverena; ne brisati samo zato sto je kod napisan. Ne preskakati Studio potvrdu.
@@ -29,13 +29,19 @@ Procitati GAMEPLAY.md pre rada. Implementirati samo aktivnu fazu. Brisati stavku
 - [ ] Potvrditi biome/rarity brzine i dva istovremena lopova sa odvojenim Guardian targetima.
 - [ ] Potvrditi regresioni test na legacy Motor6D rig-u; korisnikov rig sa AnimationConstraint zglobovima već aktivira ragdoll.
 
-## Aktivno — faza 9 (Studio potvrda)
+## Odloženo — faza 9 (Studio potvrda)
 
 - [ ] Potvrditi lobby deposit -> vizuelni Egg Tool, sacuvane metadata/ownership, jedan zapis i Tool po UID-u, equip/unequip bez dupliranja, respawn u istoj sesiji i dva igraca prema docs/FAZA_09.md.
 
+## Odloženo — faza 10 (Studio potvrda)
+
+- [ ] Potvrditi dodelu/cleanup vlasnika, kapacitet šest jaja, respawn i red čekanja sa tri igrača/dva plota prema docs/FAZA_10.md.
+
+## Aktivno — faza 11 (Studio potvrda)
+
+- [ ] Potvrditi sivi/crveni preview, slobodno postavljanje na Place, granice/razmak/udaljenost/kapacitet, ownership, trošenje bez dupliranja, respawn i multiplayer prema docs/FAZA_11.md.
+
 ## Sledece faze — tek nakon potvrde prethodne
-- [ ] Faza 10: PlotService, dodela/cleanup OwnerUserId i pocetnih 6 EggSlots; ponasanje kada nema slobodnih plotova.
-- [ ] Faza 11: Place Egg prompt, ownership/proximity/slot/Tool validacija, prenos egg podataka na slot.
 - [ ] Faza 12: HatchService, rarity timer, countdown, weighted monster pool i zamena jajeta monsterom.
 - [ ] Faza 13: MonsterConfig/MonsterService, modeli i metadata, income formula i trajni slot ownership.
 - [ ] Faza 14: centralni IncomeService i zbir Cash/sec svih monstera vlasnika.
@@ -45,3 +51,5 @@ Procitati GAMEPLAY.md pre rada. Implementirati samo aktivnu fazu. Brisati stavku
 - [ ] Faza 18 (kasnije): LastLogoutTime, offline income do 6h i prikaz zarade bez duple isplate.
 - [ ] Faza 19: server kupovina plot upgrades 6/8/12/16 slotova i persistence.
 - [ ] Faza 20: UI polish, animacije, zvuci, chase muzika, rarity VFX, particles, floating Speed/income i tranzicije.
+
+

@@ -206,6 +206,49 @@ return EggConfig
       </Item>
       <Item class="ModuleScript" referent="4">
         <Properties>
+          <string name="Name">EggPlacement</string>
+          <string name="Source"><![CDATA[-- Shared geometry only. Server independently validates every placement.
+local Placement = { MaxDistance = 30, Gap = 0.25 }
+
+function Placement.GetFrame(place, point, size)
+	local localPoint = place.CFrame:PointToObjectSpace(point)
+	return place.CFrame * CFrame.new(localPoint.X, place.Size.Y / 2 + size.Y / 2, localPoint.Z)
+end
+
+function Placement.IsValid(plot, point, size, rootPosition)
+	local place = plot:FindFirstChild("Place")
+	local eggs = plot:FindFirstChild("PlacedEggs")
+	if not place or not place:IsA("BasePart") or not eggs then return false end
+	local p = place.CFrame:PointToObjectSpace(point)
+	if math.abs(p.Y - place.Size.Y / 2) > 0.15 then return false end
+	if math.abs(p.X) + size.X / 2 > place.Size.X / 2
+		or math.abs(p.Z) + size.Z / 2 > place.Size.Z / 2 then return false end
+	if (point - rootPosition).Magnitude > Placement.MaxDistance then return false end
+	if #eggs:GetChildren() >= (plot:GetAttribute("SlotCapacity") or 6) then return false end
+	for _, egg in ipairs(eggs:GetChildren()) do
+		if egg:IsA("Model") then
+			local frame, otherSize = egg:GetBoundingBox()
+			local other = place.CFrame:PointToObjectSpace(frame.Position)
+			if math.abs(p.X - other.X) < (size.X + otherSize.X) / 2 + Placement.Gap
+				and math.abs(p.Z - other.Z) < (size.Z + otherSize.Z) / 2 + Placement.Gap then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+function Placement.Move(model, boundingFrame)
+	local current = model:GetBoundingBox()
+	model:PivotTo(boundingFrame * current:ToObjectSpace(model:GetPivot()))
+end
+
+return Placement
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
           <string name="Name">EggRoller</string>
           <string name="Source"><![CDATA[-- ReplicatedStorage.Modules.EggRoller
 -- Faza 4
@@ -527,7 +570,7 @@ return EggRoller
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="5">
+      <Item class="ModuleScript" referent="6">
         <Properties>
           <string name="Name">GuardianConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -579,7 +622,7 @@ return GuardianConfig
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="6">
+      <Item class="ModuleScript" referent="7">
         <Properties>
           <string name="Name">LightingProfiles</string>
           <string name="Source"><![CDATA[local Profiles = {}
@@ -723,7 +766,7 @@ return Profiles
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="7">
+      <Item class="ModuleScript" referent="8">
         <Properties>
           <string name="Name">RarityConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -809,7 +852,7 @@ return RarityConfig
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="8">
+      <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">SizeConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -883,11 +926,16 @@ return SizeConfig
         </Properties>
       </Item>
     </Item>
-    <Item class="Folder" referent="9">
+    <Item class="RemoteEvent" referent="10">
+      <Properties>
+        <string name="Name">PlaceEggEvent</string>
+      </Properties>
+    </Item>
+    <Item class="Folder" referent="11">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="10">
+      <Item class="ModuleScript" referent="12">
         <Properties>
           <string name="Name">Hello</string>
           <string name="Source"><![CDATA[return function()
@@ -898,15 +946,15 @@ end
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="11">
+  <Item class="ServerScriptService" referent="13">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="12">
+    <Item class="Folder" referent="14">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="13">
+      <Item class="ModuleScript" referent="15">
         <Properties>
           <string name="Name">BiomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -1071,7 +1119,7 @@ return BiomeService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="14">
+      <Item class="Script" referent="16">
         <Properties>
           <string name="Name">BiomeSystem</string>
           <token name="RunContext">0</token>
@@ -1080,30 +1128,53 @@ BiomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="15">
+      <Item class="ModuleScript" referent="17">
         <Properties>
           <string name="Name">EggInventoryService</string>
           <string name="Source"><![CDATA[-- Server-owned inventory records; Tools are replaceable views of those records.
 local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local EggConfig = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EggConfig"))
 local Service = {}
 local states = {}
 local fields = { "UID", "EggType", "EggName", "Biome", "Rarity", "Size", "Scale" }
 
 local function makeTool(player, egg)
-	local visual = egg:Clone()
+	-- Never clone the live carried assembly: its joints can reference the character
+	-- and its parts can carry velocities/forces from the world simulation.
+	local eggType = egg:GetAttribute("EggType")
+	local definition = EggConfig.EggTypes[eggType]
+	if not definition and eggType == EggConfig.LegacyBasicEgg.EggType then
+		definition = EggConfig.LegacyBasicEgg
+	end
+	local models = ServerStorage:FindFirstChild("EggModels")
+	local source = models and definition and models:FindFirstChild(definition.ModelName)
+	assert(source and source:IsA("Model"), "Missing clean EggModels template for " .. tostring(eggType))
+	local visual = source:Clone()
 	assert(visual and visual.PrimaryPart, "Egg visual must have a PrimaryPart")
 	-- Never copy world carry welds, prompts, scripts, or chase state into a Tool.
 	for _, object in ipairs(visual:GetDescendants()) do
 		if object:IsA("LuaSourceContainer") or object:IsA("JointInstance")
-			or object:IsA("Constraint") or object:IsA("ProximityPrompt") then
+			or object:IsA("Constraint") or object:IsA("BodyMover") or object:IsA("ProximityPrompt") then
 			object:Destroy()
 		end
 	end
+	-- Strip joints before touching transforms or anchoring any cloned part.
+	for _, part in ipairs(visual:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
+			part.RootPriority = -127
+		end
+	end
+	visual:ScaleTo(egg:GetAttribute("Scale"))
 	for name in pairs(visual:GetAttributes()) do visual:SetAttribute(name, nil) end
 	visual.Name = "EggVisual"
-	local extent = visual:GetExtentsSize()
-	local longest = math.max(extent.X, extent.Y, extent.Z)
-	if longest > 4 then visual:ScaleTo(visual:GetScale() * 4 / longest) end
+	-- Keep the original rolled Scale in the Tool, preview and placed model.
+	-- Only normalize position/orientation for the handle; never shrink the visual.
 	visual:PivotTo(CFrame.new())
 	local tool = Instance.new("Tool")
 	tool.Name = tostring(egg:GetAttribute("Size")) .. " " .. tostring(egg:GetAttribute("EggName"))
@@ -1120,16 +1191,27 @@ local function makeTool(player, egg)
 	handle.CFrame = CFrame.new()
 	handle.CanCollide, handle.CanTouch, handle.CanQuery = false, false, false
 	handle.Massless = true
+	handle.RootPriority = -127
 	handle.Parent = tool
 	visual.Parent = tool
 	for _, part in ipairs(visual:GetDescendants()) do
 		if part:IsA("BasePart") then
-			part.Anchored = false
 			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
 			part.Massless = true
-			local weld = Instance.new("WeldConstraint")
+			-- Explicit offsets survive cloning outside Workspace and Tool equip movement.
+			local weld = Instance.new("Weld")
+			weld.Name = "EggToolWeld"
+			weld.C0 = handle.CFrame:ToObjectSpace(part.CFrame)
+			weld.C1 = CFrame.new()
 			weld.Part0, weld.Part1 = handle, part
 			weld.Parent = part
+		end
+	end
+	for _, part in ipairs(visual:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = false
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
 		end
 	end
 	return tool
@@ -1215,6 +1297,25 @@ function Service.Deposit(player, egg, inventory)
 	return true
 end
 
+function Service.GetEquippedEntry(player, uid)
+	local state = states[player]
+	local entry = state and state.entries[uid]
+	if not entry or entry.record.Parent ~= state.inventory
+		or not entry.live or entry.live.Parent ~= player.Character
+		or entry.record:GetAttribute("OwnerUserId") ~= player.UserId then return nil end
+	return entry
+end
+
+function Service.ConsumeEquipped(player, uid)
+	local entry = Service.GetEquippedEntry(player, uid)
+	if not entry then return false end
+	states[player].entries[uid] = nil
+	entry.live:Destroy()
+	entry.template:Destroy()
+	entry.record:Destroy()
+	return true
+end
+
 Players.PlayerRemoving:Connect(function(player)
 	local state = states[player]
 	if not state then return end
@@ -1230,7 +1331,68 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="16">
+      <Item class="Script" referent="18">
+        <Properties>
+          <string name="Name">EggPlacementSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PlotService = require(script.Parent:WaitForChild("PlotService"))
+local Inventory = require(script.Parent:WaitForChild("EggInventoryService"))
+local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
+PlotService.Start()
+
+-- Also support Studio sessions where only the script folders were synced.
+local remote = ReplicatedStorage:FindFirstChild("PlaceEggEvent")
+if not remote then
+	remote = Instance.new("RemoteEvent")
+	remote.Name = "PlaceEggEvent"
+	remote.Parent = ReplicatedStorage
+end
+assert(remote:IsA("RemoteEvent"), "[EggPlacement] ReplicatedStorage.PlaceEggEvent must be a RemoteEvent; an object with the wrong class already has that name.")
+local lastRequest = {}
+
+remote.OnServerEvent:Connect(function(player, uid, point)
+	local now = os.clock()
+	if now - (lastRequest[player] or -math.huge) < 0.15 then return end
+	lastRequest[player] = now
+	if type(uid) ~= "string" or #uid > 128 or typeof(point) ~= "Vector3" then return end
+	for _, value in ipairs({point.X, point.Y, point.Z}) do
+		if value ~= value or math.abs(value) == math.huge then return end
+	end
+	local plot = PlotService.GetPlot(player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not plot or not PlotService.IsOwner(player, plot) or not root or not humanoid or humanoid.Health <= 0 then return end
+	local entry = Inventory.GetEquippedEntry(player, uid)
+	if not entry then return end
+	local visual = entry.template:FindFirstChild("EggVisual")
+	if not visual then return end
+	local _, size = visual:GetBoundingBox()
+	if not Placement.IsValid(plot, point, size, root.Position) then return end
+	local egg = visual:Clone()
+	egg.Name = uid
+	for name, value in pairs(entry.record:GetAttributes()) do egg:SetAttribute(name, value) end
+	egg:SetAttribute("Placed", true)
+	for _, object in ipairs(egg:GetDescendants()) do
+		if object:IsA("JointInstance") or object:IsA("Constraint") then object:Destroy()
+		elseif object:IsA("BasePart") then
+			object.Anchored = true
+			object.CanCollide, object.CanTouch, object.CanQuery = false, false, true
+		end
+	end
+	Placement.Move(egg, Placement.GetFrame(plot.Place, point, size))
+	-- Validation, consumption and publication never yield; repeated clicks cannot duplicate a UID.
+	if Inventory.ConsumeEquipped(player, uid) then egg.Parent = plot.PlacedEggs else egg:Destroy() end
+end)
+
+Players.PlayerRemoving:Connect(function(player) lastRequest[player] = nil end)
+remote:SetAttribute("ServerReady", true)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="19">
         <Properties>
           <string name="Name">EggSystem</string>
           <token name="RunContext">0</token>
@@ -2704,7 +2866,7 @@ print(
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="17">
+      <Item class="ModuleScript" referent="20">
         <Properties>
           <string name="Name">GuardianHitService</string>
           <string name="Source"><![CDATA[-- Server-only temporary ragdoll. Original joints and movement settings are restored.
@@ -2903,7 +3065,7 @@ return HitService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="18">
+      <Item class="Script" referent="21">
         <Properties>
           <string name="Name">GuardianService</string>
           <token name="RunContext">0</token>
@@ -3173,7 +3335,7 @@ print("[GuardianService] Phase 8 guardian service loaded.")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="19">
+      <Item class="Script" referent="22">
         <Properties>
           <string name="Name">PlayerStats</string>
           <token name="RunContext">0</token>
@@ -3332,7 +3494,146 @@ end
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="20">
+      <Item class="ModuleScript" referent="23">
+        <Properties>
+          <string name="Name">PlotService</string>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local PlotService = {}
+local STARTING_SLOTS = 6
+local started = false
+local plots = {}
+local assignments = {}
+local waiting = {}
+local queued = {}
+
+local function resetPlot(plot, ownerUserId)
+	plot:SetAttribute("OwnerUserId", ownerUserId)
+	plot:SetAttribute("SlotCapacity", STARTING_SLOTS)
+	plot.PlacedEggs:ClearAllChildren()
+end
+
+local function preparePlot(plot)
+	if not plot:IsA("Model") then return false end
+	local place = plot:FindFirstChild("Place")
+	if not place or not place:IsA("BasePart") or not place.Anchored then
+		warn("[PlotService] " .. plot:GetFullName() .. " needs an anchored Place Part.")
+		return false
+	end
+	local eggs = plot:FindFirstChild("PlacedEggs")
+	if eggs and not eggs:IsA("Folder") then
+		warn("[PlotService] PlacedEggs must be a Folder: " .. plot:GetFullName())
+		return false
+	end
+	if not eggs then
+		eggs = Instance.new("Folder")
+		eggs.Name = "PlacedEggs"
+		eggs.Parent = plot
+	end
+	resetPlot(plot, 0)
+	return true
+end
+
+local function assignWaiting()
+	for _, plot in ipairs(plots) do
+		if plot:GetAttribute("OwnerUserId") ~= 0 then
+			continue
+		end
+		while #waiting > 0 do
+			local player = table.remove(waiting, 1)
+			queued[player] = nil
+			if player.Parent == Players and not assignments[player] then
+				-- No yields between claiming the plot and recording its owner.
+				resetPlot(plot, player.UserId)
+				assignments[player] = plot
+				player:SetAttribute("PlotName", plot.Name)
+				player:SetAttribute("PlotStatus", "Assigned")
+				break
+			end
+		end
+	end
+end
+
+local function enqueue(player)
+	if assignments[player] or queued[player] or player.Parent ~= Players then
+		return
+	end
+	player:SetAttribute("PlotName", nil)
+	player:SetAttribute("PlotStatus", "WaitingForPlot")
+	queued[player] = true
+	table.insert(waiting, player)
+	assignWaiting()
+end
+
+function PlotService.GetPlot(player)
+	return assignments[player]
+end
+
+function PlotService.IsOwner(player, plot)
+	return plot ~= nil and assignments[player] == plot and plot:GetAttribute("OwnerUserId") == player.UserId
+end
+
+function PlotService.Start()
+	if started then
+		return
+	end
+	started = true
+	local folder = Workspace:FindFirstChild("Plots")
+	if not folder or not folder:IsA("Folder") then
+		warn("[PlotService] Create Workspace.Plots (Folder) and plot Models; players will wait until plots are configured and the server is restarted.")
+	else
+		local candidates = folder:GetChildren()
+		table.sort(candidates, function(a, b)
+			return a.Name < b.Name
+		end)
+		local names = {}
+		for _, plot in ipairs(candidates) do
+			if names[plot.Name] then
+				warn("[PlotService] Duplicate plot name skipped: " .. plot.Name)
+			elseif preparePlot(plot) then
+				names[plot.Name] = true
+				table.insert(plots, plot)
+			end
+		end
+	end
+	Players.PlayerAdded:Connect(enqueue)
+	Players.PlayerRemoving:Connect(function(player)
+		queued[player] = nil
+		for index = #waiting, 1, -1 do
+			if waiting[index] == player then
+				table.remove(waiting, index)
+			end
+		end
+		local plot = assignments[player]
+		assignments[player] = nil
+		if plot then
+			resetPlot(plot, 0)
+		end
+		player:SetAttribute("PlotName", nil)
+		player:SetAttribute("PlotStatus", nil)
+		assignWaiting()
+	end)
+	for _, player in ipairs(Players:GetPlayers()) do
+		enqueue(player)
+	end
+end
+
+return PlotService
+
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="24">
+        <Properties>
+          <string name="Name">PlotSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local PlotService = require(script.Parent:WaitForChild("PlotService"))
+PlotService.Start()
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="25">
         <Properties>
           <string name="Name">TreadmillSystem</string>
           <token name="RunContext">0</token>
@@ -3505,27 +3806,27 @@ end)</string>
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="21">
+  <Item class="SoundService" referent="26">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="22">
+  <Item class="StarterPlayer" referent="27">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="23">
+    <Item class="StarterPlayerScripts" referent="28">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="24">
+      <Item class="LocalScript" referent="29">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[print("Hello world, from client!")
 ]]></string>
         </Properties>
-        <Item class="LocalScript" referent="25">
+        <Item class="LocalScript" referent="30">
           <Properties>
             <string name="Name">AreaLighting</string>
             <string name="Source">local Players = game:GetService("Players")
@@ -3758,7 +4059,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 end)</string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="26">
+        <Item class="LocalScript" referent="31">
           <Properties>
             <string name="Name">BiomeUI</string>
             <string name="Source">local Players = game:GetService("Players")
@@ -4053,7 +4354,7 @@ end)
 event:FireServer("Ready")</string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="27">
+        <Item class="LocalScript" referent="32">
           <Properties>
             <string name="Name">CustomMovementAnimations</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4098,7 +4399,130 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="28">
+        <Item class="LocalScript" referent="33">
+          <Properties>
+            <string name="Name">EggPlacement</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local Placement = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EggPlacement"))
+local remote = ReplicatedStorage:WaitForChild("PlaceEggEvent", 10)
+if not remote or not remote:IsA("RemoteEvent") then
+	warn("[EggPlacement] PlaceEggEvent missing. Stop Play, sync Rojo including default.project.json, then start a new session.")
+	return
+end
+task.delay(10, function()
+	if not remote:GetAttribute("ServerReady") then
+		warn("[EggPlacement] Server is not ready. Check ServerScriptService.Server.EggPlacementSystem and earlier server Output errors.")
+	end
+end)
+local ghost, equipped, size, point
+local valid = false
+local lastColor
+local gray = Color3.fromRGB(175, 175, 175)
+local red = Color3.fromRGB(235, 65, 65)
+
+local function clear()
+	if ghost then ghost:Destroy() end
+	ghost, equipped, size, point, lastColor = nil, nil, nil, nil, nil
+	valid = false
+end
+
+local function makePreview(tool)
+	clear()
+	local visual = tool:FindFirstChild("EggVisual")
+	if not visual then return end
+	ghost = visual:Clone()
+	ghost.Name = "LocalEggPlacementPreview"
+	for _, object in ipairs(ghost:GetDescendants()) do
+		if object:IsA("JointInstance") or object:IsA("Constraint") or object:IsA("LuaSourceContainer")
+			or object:IsA("SurfaceAppearance") or object:IsA("Decal") or object:IsA("Texture")
+			or object:IsA("ParticleEmitter") or object:IsA("Trail") or object:IsA("Beam")
+			or object:IsA("Light") or object:IsA("BillboardGui") or object:IsA("SurfaceGui")
+			or object:IsA("Highlight") then
+			object:Destroy()
+		elseif object:IsA("BasePart") then
+			object.Anchored = true
+			object.CanCollide, object.CanTouch, object.CanQuery = false, false, false
+			object.Transparency = if object.Transparency >= 1 then 1 else 0.6
+			object.Material = Enum.Material.SmoothPlastic
+			object.Reflectance = 0
+			object.CastShadow = false
+			if object:IsA("UnionOperation") then object.UsePartColor = true end
+			if object:IsA("MeshPart") then object.TextureID = "" end
+		elseif object:IsA("SpecialMesh") then
+			object.TextureId = ""
+			object.VertexColor = Vector3.new(1, 1, 1)
+		end
+	end
+	ghost:PivotTo(CFrame.new())
+	local _, bounds = ghost:GetBoundingBox()
+	size = bounds
+	equipped = tool
+	ghost.Parent = workspace
+end
+
+local function updatePreview()
+	valid = false
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local tool = character and character:FindFirstChildOfClass("Tool")
+	if not tool or not tool:GetAttribute("IsEggTool") or not root or not humanoid or humanoid.Health <= 0 then
+		if ghost then clear() end
+		return
+	end
+	if equipped ~= tool then makePreview(tool) end
+	if not ghost then return end
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	-- Roblox supplies the cursor ray in the correct screen coordinate space.
+	-- Do not subtract GUI inset from viewport coordinates manually.
+	local ray = mouse.UnitRay
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {character, ghost}
+	local hit = workspace:Raycast(ray.Origin, ray.Direction * 500, params)
+	point = if hit then hit.Position else ray.Origin + ray.Direction * 30
+	local plots = workspace:FindFirstChild("Plots")
+	local name = player:GetAttribute("PlotName")
+	local plot = plots and type(name) == "string" and plots:FindFirstChild(name)
+	local place = plot and plot:FindFirstChild("Place")
+	valid = remote:GetAttribute("ServerReady") == true and hit ~= nil and place ~= nil and hit.Instance == place
+		and plot:GetAttribute("OwnerUserId") == player.UserId
+		and Placement.IsValid(plot, point, size, root.Position)
+	local frame = if place and hit and hit.Instance == place
+		then Placement.GetFrame(place, point, size)
+		else CFrame.new(point + Vector3.new(0, size.Y / 2, 0))
+	Placement.Move(ghost, frame)
+	local color = if valid then gray else red
+	if color ~= lastColor then
+		for _, object in ipairs(ghost:GetDescendants()) do
+			if object:IsA("BasePart") then object.Color = color end
+		end
+		lastColor = color
+	end
+end
+
+RunService:BindToRenderStep("EggPlacementPreview", Enum.RenderPriority.Camera.Value + 1, updatePreview)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	-- Recompute at click time rather than sending the previous rendered frame's point.
+	updatePreview()
+	if valid and equipped and equipped.Parent == player.Character and point then
+		remote:FireServer(equipped:GetAttribute("UID"), point)
+	end
+end)
+
+player.CharacterRemoving:Connect(clear)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="34">
           <Properties>
             <string name="Name">GuardianRagdoll</string>
             <string name="Source"><![CDATA[-- Match the local Humanoid/animation controller to the server's hit state.
@@ -4170,16 +4594,92 @@ if player.Character then task.spawn(setup, player.Character) end
 ]]></string>
           </Properties>
         </Item>
+        <Item class="LocalScript" referent="35">
+          <Properties>
+            <string name="Name">LavaAnimation (Thermal Chamber)</string>
+            <string name="Source">local RunService = game:GetService("RunService")
+
+local lavaFloor = workspace:WaitForChild("LavaFloor")
+local texture = lavaFloor:WaitForChild("Texture")
+local light = lavaFloor:WaitForChild("SurfaceLight")
+
+-- =========================
+-- POMERANJE LAVE
+-- =========================
+
+local MOVE_SPEED_U = 0.6
+local MOVE_SPEED_V = 0.18
+
+-- =========================
+-- PULSIRANJE SVETLA
+-- =========================
+
+local BASE_BRIGHTNESS = 0.8
+local BRIGHTNESS_PULSE = 0.35
+
+-- =========================
+-- PULSIRANJE TEKSTURE
+-- =========================
+
+local BASE_TRANSPARENCY = 0.02
+local TRANSPARENCY_PULSE = 0.08
+
+-- Brzina pulsiranja
+local PULSE_SPEED_1 = 1.3
+local PULSE_SPEED_2 = 2.1
+
+-- =========================
+-- START VREDNOSTI
+-- =========================
+
+local timePassed = 0
+local offsetU = texture.OffsetStudsU
+local offsetV = texture.OffsetStudsV
+
+-- =========================
+-- ANIMACIJA
+-- =========================
+
+RunService.RenderStepped:Connect(function(dt)
+	timePassed += dt
+
+	-- Pomeranje lava teksture
+	offsetU += MOVE_SPEED_U * dt
+	offsetV += MOVE_SPEED_V * dt
+
+	texture.OffsetStudsU = offsetU
+	texture.OffsetStudsV = offsetV
+
+	-- Nepravilan heat pulse
+	local wave1 = math.sin(timePassed * PULSE_SPEED_1)
+	local wave2 = math.sin(timePassed * PULSE_SPEED_2)
+
+	local pulse = wave1 * 0.7 + wave2 * 0.3
+
+	-- Pretvaramo otprilike u 0 - 1e
+	pulse = (pulse + 1) / 2
+
+	-- Pulsiranje SurfaceLight-a
+	light.Brightness =
+		BASE_BRIGHTNESS + pulse * BRIGHTNESS_PULSE
+
+	-- Pulsiranje same teksture
+	-- Kad je pulse jači, lava je manje providna
+	texture.Transparency =
+		BASE_TRANSPARENCY + (1 - pulse) * TRANSPARENCY_PULSE
+end)</string>
+          </Properties>
+        </Item>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="29">
+  <Item class="Workspace" referent="36">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
       <bool name="NeedsPivotMigration">false</bool>
     </Properties>
-    <Item class="Part" referent="30">
+    <Item class="Part" referent="37">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

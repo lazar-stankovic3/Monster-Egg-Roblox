@@ -4,6 +4,9 @@
     "$className": "DataModel",
 
     "ReplicatedStorage": {
+      "PlaceEggEvent": {
+        "$className": "RemoteEvent"
+      },
       "Modules": {
         "$path": "src/modules"
       },

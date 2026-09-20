@@ -1,24 +1,47 @@
 -- Server-owned inventory records; Tools are replaceable views of those records.
 local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local EggConfig = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EggConfig"))
 local Service = {}
 local states = {}
 local fields = { "UID", "EggType", "EggName", "Biome", "Rarity", "Size", "Scale" }
 
 local function makeTool(player, egg)
-	local visual = egg:Clone()
+	-- Never clone the live carried assembly: its joints can reference the character
+	-- and its parts can carry velocities/forces from the world simulation.
+	local eggType = egg:GetAttribute("EggType")
+	local definition = EggConfig.EggTypes[eggType]
+	if not definition and eggType == EggConfig.LegacyBasicEgg.EggType then
+		definition = EggConfig.LegacyBasicEgg
+	end
+	local models = ServerStorage:FindFirstChild("EggModels")
+	local source = models and definition and models:FindFirstChild(definition.ModelName)
+	assert(source and source:IsA("Model"), "Missing clean EggModels template for " .. tostring(eggType))
+	local visual = source:Clone()
 	assert(visual and visual.PrimaryPart, "Egg visual must have a PrimaryPart")
 	-- Never copy world carry welds, prompts, scripts, or chase state into a Tool.
 	for _, object in ipairs(visual:GetDescendants()) do
 		if object:IsA("LuaSourceContainer") or object:IsA("JointInstance")
-			or object:IsA("Constraint") or object:IsA("ProximityPrompt") then
+			or object:IsA("Constraint") or object:IsA("BodyMover") or object:IsA("ProximityPrompt") then
 			object:Destroy()
 		end
 	end
+	-- Strip joints before touching transforms or anchoring any cloned part.
+	for _, part in ipairs(visual:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
+			part.RootPriority = -127
+		end
+	end
+	visual:ScaleTo(egg:GetAttribute("Scale"))
 	for name in pairs(visual:GetAttributes()) do visual:SetAttribute(name, nil) end
 	visual.Name = "EggVisual"
-	local extent = visual:GetExtentsSize()
-	local longest = math.max(extent.X, extent.Y, extent.Z)
-	if longest > 4 then visual:ScaleTo(visual:GetScale() * 4 / longest) end
+	-- Keep the original rolled Scale in the Tool, preview and placed model.
+	-- Only normalize position/orientation for the handle; never shrink the visual.
 	visual:PivotTo(CFrame.new())
 	local tool = Instance.new("Tool")
 	tool.Name = tostring(egg:GetAttribute("Size")) .. " " .. tostring(egg:GetAttribute("EggName"))
@@ -35,16 +58,27 @@ local function makeTool(player, egg)
 	handle.CFrame = CFrame.new()
 	handle.CanCollide, handle.CanTouch, handle.CanQuery = false, false, false
 	handle.Massless = true
+	handle.RootPriority = -127
 	handle.Parent = tool
 	visual.Parent = tool
 	for _, part in ipairs(visual:GetDescendants()) do
 		if part:IsA("BasePart") then
-			part.Anchored = false
 			part.CanCollide, part.CanTouch, part.CanQuery = false, false, false
 			part.Massless = true
-			local weld = Instance.new("WeldConstraint")
+			-- Explicit offsets survive cloning outside Workspace and Tool equip movement.
+			local weld = Instance.new("Weld")
+			weld.Name = "EggToolWeld"
+			weld.C0 = handle.CFrame:ToObjectSpace(part.CFrame)
+			weld.C1 = CFrame.new()
 			weld.Part0, weld.Part1 = handle, part
 			weld.Parent = part
+		end
+	end
+	for _, part in ipairs(visual:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = false
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
 		end
 	end
 	return tool
@@ -127,6 +161,25 @@ function Service.Deposit(player, egg, inventory)
 	state.entries[uid] = { record = record, template = template, live = live }
 	record.Parent = inventory
 	live.Parent = backpack
+	return true
+end
+
+function Service.GetEquippedEntry(player, uid)
+	local state = states[player]
+	local entry = state and state.entries[uid]
+	if not entry or entry.record.Parent ~= state.inventory
+		or not entry.live or entry.live.Parent ~= player.Character
+		or entry.record:GetAttribute("OwnerUserId") ~= player.UserId then return nil end
+	return entry
+end
+
+function Service.ConsumeEquipped(player, uid)
+	local entry = Service.GetEquippedEntry(player, uid)
+	if not entry then return false end
+	states[player].entries[uid] = nil
+	entry.live:Destroy()
+	entry.template:Destroy()
+	entry.record:Destroy()
 	return true
 end
 
