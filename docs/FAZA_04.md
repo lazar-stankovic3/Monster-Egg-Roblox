@@ -1,6 +1,6 @@
 # Faza 4 — Egg pools i metadata
 
-Status: kod je u `EggSystem.server.lua`, `EggConfig.luau` i `EggRoller.luau`; potrebno je postavljanje asset-a i Studio runtime potvrda pre faze 5.
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 
 Faza 4 zadržava postojeći tok: pickup → carry → death drop → lobby deposit → respawn. Server bira tip jajeta iz biome pool-a, dodeljuje kompletan metadata set i kopira relevantne vrednosti u `Player.EggInventory` pri deposit-u.
 
@@ -84,4 +84,4 @@ Pokreni **Play** (ne Run), otvori Output i proveri da nema upozorenja iz `EggSys
 7. Privremeno stavi nepostojeći `Biome` ili pogrešan `ModelName`. Output treba jasno da prijavi problem, a samo taj spawn da bude preskočen; zatim vrati ispravnu konfiguraciju.
 8. Proveri trening i biome Recommended Speed UI iz faze 3 dok se jaja spawn-uju i nose.
 
-Rojo build potvrđuje pakovanje projekta, ali nije zamena za ovaj Studio runtime test. Nakon prolaza označi obe stavke faze 4 u `TODO.md` kao završene i tek tada pređi na fazu 5.
+Rojo build potvrđuje pakovanje projekta, ali nije zamena za ovaj Studio runtime test. Korisnik je potvrdio prolaz 2026-09-20; završene provere su uklonjene iz TODO.md.

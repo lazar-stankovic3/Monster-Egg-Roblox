@@ -1,6 +1,6 @@
 # Faza 3 — Biome Recommended Speed
 
-Status: kod implementiran; potrebno je potvrditi testove u Roblox Studio pre faze 4.
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 Postojeci PlayerStats, TreadmillSystem i EggSystem nisu menjani.
 
 ## 1. Fajlovi i kompletan kod

@@ -1,6 +1,6 @@
 # Faza 6 — SizeConfig
 
-Status: dodat je centralni `SizeConfig` sa income multiplierima. Postojeće spawn verovatnoće i vizuelne scale vrednosti ostaju netaknute u `EggConfig.Sizes`.
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 
 ## Fajlovi
 

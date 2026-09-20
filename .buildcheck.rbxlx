@@ -624,6 +624,44 @@ return GuardianConfig
       </Item>
       <Item class="ModuleScript" referent="7">
         <Properties>
+          <string name="Name">HatchConfig</string>
+          <string name="Source"><![CDATA[local Config = {}
+
+Config.Timers = { Common = 3, Uncommon = 5, Rare = 8, Epic = 15, Legendary = 30, Mythic = 60 }
+Config.Monsters = require(script.Parent:WaitForChild("MonsterConfig")).Definitions
+Config.Pools = {
+	hatchling_egg = {{"green_slime", 70}, {"leaf_bunny", 20}, {"baby_goblin", 8}, {"forest_dragon", 2}},
+	forest_egg = {{"leaf_bunny", 60}, {"baby_goblin", 30}, {"forest_dragon", 10}},
+	slime_egg = {{"green_slime", 100}},
+	magma_egg = {{"magma_slime", 75}, {"flame_goblin", 25}},
+	inferno_egg = {{"flame_goblin", 80}, {"inferno_dragon", 20}},
+	dragon_egg = {{"inferno_dragon", 100}},
+	basic_egg = {{"green_slime", 70}, {"leaf_bunny", 20}, {"baby_goblin", 8}, {"forest_dragon", 2}},
+}
+
+function Config.Roll(eggType, random)
+	local pool = Config.Pools[eggType]
+	if not pool or #pool == 0 then return nil end
+	local total = 0
+	for _, entry in ipairs(pool) do
+		if not Config.Monsters[entry[1]] or type(entry[2]) ~= "number"
+			or entry[2] ~= entry[2] or entry[2] <= 0 or entry[2] == math.huge then return nil end
+		total += entry[2]
+	end
+	local choice = random:NextNumber() * total
+	for _, entry in ipairs(pool) do
+		choice -= entry[2]
+		if choice < 0 then return entry[1] end
+	end
+	return pool[#pool][1]
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
           <string name="Name">LightingProfiles</string>
           <string name="Source"><![CDATA[local Profiles = {}
 
@@ -766,7 +804,44 @@ return Profiles
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="8">
+      <Item class="ModuleScript" referent="9">
+        <Properties>
+          <string name="Name">MonsterConfig</string>
+          <string name="Source"><![CDATA[local RarityConfig = require(script.Parent:WaitForChild("RarityConfig"))
+local SizeConfig = require(script.Parent:WaitForChild("SizeConfig"))
+local Config = {}
+
+-- Initial base rates. Rarity is the species default; hatched instances inherit egg rarity.
+local function definition(name, biome, rarity, income, modelName, indexId, color)
+	return { MonsterName = name, Biome = biome, Rarity = rarity, BaseIncome = income,
+		ModelName = modelName, IndexId = indexId, Icon = "", Color = color }
+end
+
+Config.Definitions = {
+	green_slime = definition("Green Slime", "HatchlingFields", "Common", 2, "GreenSlime", "green_slime", Color3.fromRGB(80, 210, 100)),
+	leaf_bunny = definition("Leaf Bunny", "HatchlingFields", "Uncommon", 4, "LeafBunny", "leaf_bunny", Color3.fromRGB(170, 225, 100)),
+	baby_goblin = definition("Baby Goblin", "HatchlingFields", "Rare", 8, "BabyGoblin", "baby_goblin", Color3.fromRGB(90, 150, 65)),
+	forest_dragon = definition("Forest Dragon", "HatchlingFields", "Legendary", 20, "ForestDragon", "forest_dragon", Color3.fromRGB(35, 125, 75)),
+	magma_slime = definition("Magma Slime", "Volcano", "Rare", 12, "MagmaSlime", "magma_slime", Color3.fromRGB(255, 115, 35)),
+	flame_goblin = definition("Flame Goblin", "Volcano", "Epic", 25, "FlameGoblin", "flame_goblin", Color3.fromRGB(210, 65, 40)),
+	inferno_dragon = definition("Inferno Dragon", "Volcano", "Legendary", 60, "InfernoDragon", "inferno_dragon", Color3.fromRGB(150, 35, 35)),
+}
+
+function Config.CalculateIncome(monsterId, rarity, size)
+	local entry = Config.Definitions[monsterId]
+	local rarityMultiplier = RarityConfig.GetIncomeMultiplier(rarity)
+	local sizeMultiplier = SizeConfig.GetIncomeMultiplier(size)
+	if not entry or not rarityMultiplier or not sizeMultiplier then return nil end
+	local base = entry.BaseIncome
+	if type(base) ~= "number" or base ~= base or base < 0 or base == math.huge then return nil end
+	return base * rarityMultiplier * sizeMultiplier
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="10">
         <Properties>
           <string name="Name">RarityConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -852,7 +927,7 @@ return RarityConfig
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="9">
+      <Item class="ModuleScript" referent="11">
         <Properties>
           <string name="Name">SizeConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -926,16 +1001,16 @@ return SizeConfig
         </Properties>
       </Item>
     </Item>
-    <Item class="RemoteEvent" referent="10">
+    <Item class="RemoteEvent" referent="12">
       <Properties>
         <string name="Name">PlaceEggEvent</string>
       </Properties>
     </Item>
-    <Item class="Folder" referent="11">
+    <Item class="Folder" referent="13">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="12">
+      <Item class="ModuleScript" referent="14">
         <Properties>
           <string name="Name">Hello</string>
           <string name="Source"><![CDATA[return function()
@@ -946,15 +1021,15 @@ end
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="13">
+  <Item class="ServerScriptService" referent="15">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="14">
+    <Item class="Folder" referent="16">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="15">
+      <Item class="ModuleScript" referent="17">
         <Properties>
           <string name="Name">BiomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -1119,7 +1194,7 @@ return BiomeService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="16">
+      <Item class="Script" referent="18">
         <Properties>
           <string name="Name">BiomeSystem</string>
           <token name="RunContext">0</token>
@@ -1128,7 +1203,7 @@ BiomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="17">
+      <Item class="ModuleScript" referent="19">
         <Properties>
           <string name="Name">EggInventoryService</string>
           <string name="Source"><![CDATA[-- Server-owned inventory records; Tools are replaceable views of those records.
@@ -1331,7 +1406,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="18">
+      <Item class="Script" referent="20">
         <Properties>
           <string name="Name">EggPlacementSystem</string>
           <token name="RunContext">0</token>
@@ -1340,7 +1415,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 local Inventory = require(script.Parent:WaitForChild("EggInventoryService"))
 local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
+local HatchService = require(script.Parent:WaitForChild("HatchService"))
 PlotService.Start()
+HatchService.Start()
 
 -- Also support Studio sessions where only the script folders were synced.
 local remote = ReplicatedStorage:FindFirstChild("PlaceEggEvent")
@@ -1383,8 +1460,16 @@ remote.OnServerEvent:Connect(function(player, uid, point)
 		end
 	end
 	Placement.Move(egg, Placement.GetFrame(plot.Place, point, size))
+	local prepared = HatchService.Prepare(egg)
+	if not prepared then egg:Destroy(); return end
 	-- Validation, consumption and publication never yield; repeated clicks cannot duplicate a UID.
-	if Inventory.ConsumeEquipped(player, uid) then egg.Parent = plot.PlacedEggs else egg:Destroy() end
+	if Inventory.ConsumeEquipped(player, uid) then
+		egg.Parent = plot.PlacedEggs
+		HatchService.Begin(egg, plot, prepared)
+	else
+		prepared.monster:Destroy()
+		egg:Destroy()
+	end
 end)
 
 Players.PlayerRemoving:Connect(function(player) lastRequest[player] = nil end)
@@ -1392,7 +1477,7 @@ remote:SetAttribute("ServerReady", true)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="19">
+      <Item class="Script" referent="21">
         <Properties>
           <string name="Name">EggSystem</string>
           <token name="RunContext">0</token>
@@ -2866,7 +2951,7 @@ print(
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="20">
+      <Item class="ModuleScript" referent="22">
         <Properties>
           <string name="Name">GuardianHitService</string>
           <string name="Source"><![CDATA[-- Server-only temporary ragdoll. Original joints and movement settings are restored.
@@ -3065,7 +3150,7 @@ return HitService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="21">
+      <Item class="Script" referent="23">
         <Properties>
           <string name="Name">GuardianService</string>
           <token name="RunContext">0</token>
@@ -3335,7 +3420,270 @@ print("[GuardianService] Phase 8 guardian service loaded.")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="22">
+      <Item class="ModuleScript" referent="24">
+        <Properties>
+          <string name="Name">HatchService</string>
+          <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage.Modules:WaitForChild("HatchConfig"))
+local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
+local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
+local Service = {}
+local active = {}
+local random = Random.new()
+local started = false
+
+-- Prepare before consuming inventory. Failure leaves the equipped egg untouched.
+function Service.Prepare(egg)
+	local duration = Config.Timers[egg:GetAttribute("Rarity")]
+	local monsterId = Config.Roll(egg:GetAttribute("EggType"), random)
+	if not duration or not monsterId then return nil end
+	local ok, monster = pcall(MonsterService.Create, egg, monsterId)
+	if not ok then warn("[HatchService] " .. tostring(monster)); return nil end
+	return { monster = monster, duration = duration }
+end
+
+function Service.Begin(egg, plot, prepared)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "HatchCountdown"
+	gui.Size = UDim2.fromOffset(180, 45)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 120
+	gui.Adornee = egg.PrimaryPart
+	local frame, size = egg:GetBoundingBox()
+	gui.StudsOffsetWorldSpace = frame.Position - egg.PrimaryPart.Position + Vector3.new(0, size.Y / 2 + 1.5, 0)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.3
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 22
+	label.Text = "Hatching: " .. prepared.duration .. "s"
+	label.Parent = gui
+	gui.Parent = egg
+	local deadline = workspace:GetServerTimeNow() + prepared.duration
+	egg:SetAttribute("HatchEndsAt", deadline)
+	egg:SetAttribute("HatchState", "Incubating")
+	prepared.plot, prepared.deadline, prepared.label = plot, deadline, label
+	prepared.owner = egg:GetAttribute("OwnerUserId")
+	active[egg] = prepared
+end
+
+function Service.Start()
+	if started then return end
+	started = true
+	local elapsed = 0
+	RunService.Heartbeat:Connect(function(dt)
+		elapsed += dt
+		if elapsed < 0.1 then return end
+		elapsed = 0
+		local now = workspace:GetServerTimeNow()
+		for egg, entry in pairs(active) do
+			local plot = entry.plot
+			if not plot:IsDescendantOf(workspace) or egg.Parent ~= plot:FindFirstChild("PlacedEggs")
+				or plot:GetAttribute("OwnerUserId") ~= entry.owner then
+				entry.monster:Destroy()
+				active[egg] = nil
+			elseif now >= entry.deadline then
+				local frame, size = egg:GetBoundingBox()
+				local _, monsterSize = entry.monster:GetBoundingBox()
+				local target = frame * CFrame.new(0, (monsterSize.Y - size.Y) / 2, 0)
+				Placement.Move(entry.monster, target)
+				entry.monster:SetAttribute("HatchedAt", now)
+				local gui = entry.label.Parent
+				gui.Name = "MonsterLabel"
+				gui.Adornee = entry.monster.PrimaryPart
+				gui.StudsOffsetWorldSpace = target.Position - entry.monster.PrimaryPart.Position
+					+ Vector3.new(0, monsterSize.Y / 2 + 1.5, 0)
+				gui.Size = UDim2.fromOffset(230, 75)
+                entry.label.Text = string.format("%s\n%s | %s\n$%g/sec", entry.monster:GetAttribute("MonsterName"), entry.monster:GetAttribute("Rarity"), entry.monster:GetAttribute("Size"), entry.monster:GetAttribute("FinalIncome"))
+				gui.Parent = entry.monster
+				-- Keep one occupied entry in PlacedEggs; monsters count toward the same six-place limit.
+				active[egg] = nil
+				entry.monster.Parent = egg.Parent
+				egg:Destroy()
+			else
+				local remaining = math.ceil(entry.deadline - now)
+				if entry.remaining ~= remaining then
+					entry.remaining = remaining
+					entry.label.Text = "Hatching: " .. remaining .. "s"
+				end
+			end
+		end
+	end)
+end
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="25">
+        <Properties>
+          <string name="Name">IncomeService</string>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
+local PlotService = require(script.Parent:WaitForChild("PlotService"))
+local Service = {}
+local started = false
+
+local function finite(value)
+	return type(value) == "number" and value == value and math.abs(value) < math.huge
+end
+
+local function payTick()
+	for _, player in ipairs(Players:GetPlayers()) do
+		local income = MonsterService.GetIncome(player)
+		if not finite(income) or income < 0 then income = 0 end
+		player:SetAttribute("CashPerSecond", income)
+		local stats = player:FindFirstChild("Stats")
+		local cash = stats and stats:FindFirstChild("Cash")
+		if cash and cash:IsA("NumberValue") and finite(cash.Value) then
+			local balance = cash.Value + income
+			if income > 0 and finite(balance) then cash.Value = balance end
+		end
+	end
+end
+
+function Service.Start()
+	if started then return end
+	started = true
+	PlotService.Start()
+	local function added(player) player:SetAttribute("CashPerSecond", 0) end
+	Players.PlayerAdded:Connect(added)
+	for _, player in ipairs(Players:GetPlayers()) do added(player) end
+	local elapsed = 0
+	RunService.Heartbeat:Connect(function(dt)
+		elapsed += dt
+		if elapsed < 1 then return end
+		-- One current-state payout per tick, no replay of missed ticks after a stall.
+		elapsed %= 1
+		payTick()
+	end)
+end
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="26">
+        <Properties>
+          <string name="Name">IncomeSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local IncomeService = require(script.Parent:WaitForChild("IncomeService"))
+IncomeService.Start()
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="27">
+        <Properties>
+          <string name="Name">MonsterService</string>
+          <string name="Source">local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local Config = require(ReplicatedStorage.Modules:WaitForChild("MonsterConfig"))
+local PlotService = require(script.Parent:WaitForChild("PlotService"))
+local Service = {}
+
+local function placeholder(definition)
+	local model = Instance.new("Model")
+	local function part(name, size, position, color, shape)
+		local item = Instance.new("Part")
+		item.Name, item.Size, item.Position, item.Color = name, size, position, color
+		item.Shape = shape or Enum.PartType.Ball
+		item.Anchored, item.CanCollide = true, false
+		item.Material = Enum.Material.SmoothPlastic
+		item.Parent = model
+		return item
+	end
+	model.PrimaryPart = part("Body", Vector3.new(2, 1.8, 2), Vector3.new(0, 1, 0), definition.Color)
+	for _, x in ipairs({-0.4, 0.4}) do
+		part("Eye", Vector3.new(0.35, 0.45, 0.2), Vector3.new(x, 1.25, -0.9), Color3.new(1, 1, 1))
+		part("Pupil", Vector3.new(0.14, 0.22, 0.12), Vector3.new(x, 1.25, -1.01), Color3.new(0, 0, 0))
+	end
+	if string.find(definition.MonsterName, "Bunny") then
+		for _, x in ipairs({-0.45, 0.45}) do
+			part("Ear", Vector3.new(0.4, 1.5, 0.5), Vector3.new(x, 2.2, 0), definition.Color)
+		end
+	elseif string.find(definition.MonsterName, "Dragon") then
+		for _, x in ipairs({-1.1, 1.1}) do
+			part("Wing", Vector3.new(0.6, 1.2, 1.3), Vector3.new(x, 1.2, 0.2), definition.Color, Enum.PartType.Block)
+		end
+	end
+	model:SetAttribute("Placeholder", true)
+	return model
+end
+
+function Service.Create(egg, monsterId)
+	local definition = Config.Definitions[monsterId]
+	local folder = ServerStorage:FindFirstChild("MonsterModels")
+	local source = folder and folder:FindFirstChild(definition.ModelName)
+	local model = source and source:IsA("Model") and source:Clone() or placeholder(definition)
+	for _, item in ipairs(model:GetDescendants()) do
+		if item:IsA("LuaSourceContainer") or item:IsA("JointInstance") or item:IsA("Constraint")
+			or item:IsA("BodyMover") or item:IsA("ProximityPrompt") then item:Destroy() end
+	end
+	local firstPart
+	for _, item in ipairs(model:GetDescendants()) do
+		if item:IsA("BasePart") then
+			firstPart = firstPart or item
+			item.Anchored = true
+			item.CanCollide, item.CanTouch, item.CanQuery = false, false, true
+			item.AssemblyLinearVelocity, item.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+		end
+	end
+	if not firstPart then model:Destroy(); error("Monster model has no BasePart: " .. definition.ModelName) end
+	model.PrimaryPart = model.PrimaryPart or firstPart
+	model:ScaleTo(egg:GetAttribute("Scale"))
+	model:PivotTo(CFrame.new())
+	-- Inherit the egg's size multiplier exactly; never shrink to its footprint.
+	model.Name = HttpService:GenerateGUID(false)
+	for _, name in ipairs({"EggType", "EggName", "Biome", "Rarity", "Size", "Scale", "OwnerUserId"}) do
+		model:SetAttribute(name, egg:GetAttribute(name))
+	end
+	model:SetAttribute("UID", model.Name)
+	model:SetAttribute("SourceEggUID", egg:GetAttribute("UID"))
+	model:SetAttribute("MonsterId", monsterId)
+	model:SetAttribute("MonsterName", definition.MonsterName)
+	model:SetAttribute("IsMonster", true)
+	model:SetAttribute("VisualScale", model:GetScale())
+	model:SetAttribute("BaseIncome", definition.BaseIncome)
+	model:SetAttribute("BaseRarity", definition.Rarity)
+	model:SetAttribute("IndexId", definition.IndexId)
+	model:SetAttribute("Icon", definition.Icon)
+	model:SetAttribute("ModelName", definition.ModelName)
+	model:SetAttribute("MonsterBiome", definition.Biome)
+	local income = Config.CalculateIncome(monsterId, egg:GetAttribute("Rarity"), egg:GetAttribute("Size"))
+	if not income then model:Destroy(); error("Invalid monster income metadata") end
+	model:SetAttribute("FinalIncome", income)
+	return model
+end
+
+-- Calculate from server configuration, not the displayed FinalIncome attribute.
+function Service.GetIncome(player)
+	local plot = PlotService.GetPlot(player)
+	if not plot or not PlotService.IsOwner(player, plot) then return 0 end
+	local folder = plot:FindFirstChild("PlacedEggs")
+	if not folder then return 0 end
+	local total = 0
+	local seen = {}
+	for _, model in ipairs(folder:GetChildren()) do
+		local uid = model:GetAttribute("UID")
+		if model:IsA("Model") and model:GetAttribute("IsMonster") == true
+			and model:GetAttribute("OwnerUserId") == player.UserId
+			and type(uid) == "string" and uid ~= "" and not seen[uid] then
+			seen[uid] = true
+			total += Config.CalculateIncome(model:GetAttribute("MonsterId"), model:GetAttribute("Rarity"), model:GetAttribute("Size")) or 0
+		end
+	end
+	return total
+end
+
+return Service</string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="28">
         <Properties>
           <string name="Name">PlayerStats</string>
           <token name="RunContext">0</token>
@@ -3494,7 +3842,7 @@ end
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="23">
+      <Item class="ModuleScript" referent="29">
         <Properties>
           <string name="Name">PlotService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -3624,7 +3972,7 @@ return PlotService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="24">
+      <Item class="Script" referent="30">
         <Properties>
           <string name="Name">PlotSystem</string>
           <token name="RunContext">0</token>
@@ -3633,7 +3981,7 @@ PlotService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="25">
+      <Item class="Script" referent="31">
         <Properties>
           <string name="Name">TreadmillSystem</string>
           <token name="RunContext">0</token>
@@ -3806,27 +4154,27 @@ end)</string>
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="26">
+  <Item class="SoundService" referent="32">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="27">
+  <Item class="StarterPlayer" referent="33">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="28">
+    <Item class="StarterPlayerScripts" referent="34">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="29">
+      <Item class="LocalScript" referent="35">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[print("Hello world, from client!")
 ]]></string>
         </Properties>
-        <Item class="LocalScript" referent="30">
+        <Item class="LocalScript" referent="36">
           <Properties>
             <string name="Name">AreaLighting</string>
             <string name="Source">local Players = game:GetService("Players")
@@ -4059,7 +4407,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 end)</string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="31">
+        <Item class="LocalScript" referent="37">
           <Properties>
             <string name="Name">BiomeUI</string>
             <string name="Source">local Players = game:GetService("Players")
@@ -4354,7 +4702,7 @@ end)
 event:FireServer("Ready")</string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="32">
+        <Item class="LocalScript" referent="38">
           <Properties>
             <string name="Name">CustomMovementAnimations</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4399,7 +4747,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="33">
+        <Item class="LocalScript" referent="39">
           <Properties>
             <string name="Name">EggPlacement</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4522,7 +4870,7 @@ player.CharacterRemoving:Connect(clear)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="34">
+        <Item class="LocalScript" referent="40">
           <Properties>
             <string name="Name">GuardianRagdoll</string>
             <string name="Source"><![CDATA[-- Match the local Humanoid/animation controller to the server's hit state.
@@ -4594,7 +4942,7 @@ if player.Character then task.spawn(setup, player.Character) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="35">
+        <Item class="LocalScript" referent="41">
           <Properties>
             <string name="Name">LavaAnimation (Thermal Chamber)</string>
             <string name="Source">local RunService = game:GetService("RunService")
@@ -4673,13 +5021,13 @@ end)</string>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="36">
+  <Item class="Workspace" referent="42">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
       <bool name="NeedsPivotMigration">false</bool>
     </Properties>
-    <Item class="Part" referent="37">
+    <Item class="Part" referent="43">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

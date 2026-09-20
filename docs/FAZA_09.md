@@ -1,6 +1,6 @@
 # Faza 9 — Vizuelni Egg Tool
 
-Status 2026-09-19: implementirano, ceka Studio potvrdu. Korisnik je zatrazio nastavak; nepotvrdjene provere faze 8 ostaju odlozene u TODO.md.
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 
 ## Implementacija
 
@@ -26,4 +26,4 @@ Modeli vec postoje u EggSystem-u; nije potrebna nova Studio postavka. Povezati R
 8. Backspace ne sme ispustiti Tool. Proveri da pickup, Guardian hit/ragdoll, carry penalty i lobby deposit i dalje rade normalno.
 9. Test sa dva igraca: svaki dobija svoje zapise/Tool-ove i OwnerUserId; depozit jednog ne menja inventory drugog.
 
-Rojo build proverava pakovanje, ne runtime equip, fiziku ili respawn; ove provere ostaju otvorene do Studio potvrde.
+Rojo build proverava pakovanje, ne runtime equip, fiziku ili respawn; ove provere korisnik je potvrdio 2026-09-20.

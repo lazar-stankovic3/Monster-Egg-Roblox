@@ -1,50 +1,17 @@
-﻿# Preostali zadaci
+# Preostali zadaci
 
-## Trenutni status
+## Trenutni status — 2026-09-20
 
-- [x] Faza 7: Studio potvrda carry movement penalty-ja.
-- Aktivna faza 11: slobodno postavljanje na Place uz sivi/crveni preview; čeka Studio proveru prema docs/FAZA_11.md. Na korisnikov zahtev prilagođena je faza 10. Provere faza 9 i 10 ostaju nepotvrđene.
-- Korisnik je potvrdio da ragdoll radi nakon dodavanja AnimationConstraint podrške. Poslednja izmena protiv sudara jajeta sa odbačenim igračem još čeka potvrdu.
+- [x] Sve faze 1–11 su završene i potvrđene korisnikovim testiranjem u Roblox Studio-u.
+- Potvrda obuhvata sve ranije odložene provere, poslednje ispravke Guardian-a i Egg Tool fizike, originalnu veličinu jajeta u ruci/preview-u/na plotu, poziciju miša i slobodno postavljanje.
+- Nema preostalih nepotvrđenih provera za faze 1–11.
+- Faza 13 je potvrđena korisnikovim testiranjem. Aktivna faza 14 — IncomeService: implementirana, čeka Studio potvrdu prema docs/FAZA_14.md.
 
-Procitati GAMEPLAY.md pre rada. Implementirati samo aktivnu fazu. Brisati stavku kada je zavrsena i proverena; ne brisati samo zato sto je kod napisan. Ne preskakati Studio potvrdu.
-
-## Odloženo — faza 4 (Studio potvrda)
-
-- [ ] U Studio postaviti modele iz ServerStorage.EggModels i `Biome` Attribute na svim EggSpawnPoints prema docs/FAZA_04.md.
-- [ ] Potvrditi Studio testove iz docs/FAZA_04.md: pool-ove, atribute, pickup/carry/drop/deposit i respawn bez regresije.
-
-## Odloženo — faza 5 (Studio potvrda)
-
-- [ ] Potvrditi RarityConfig i validaciju egg rarity-ja u Studio-u prema docs/FAZA_05.md. Kod je dodat; income se ne menja do faza 13/14.
-
-## Odloženo — faza 6 (Studio potvrda)
-
-- [ ] Potvrditi SizeConfig, validaciju size imena i očuvani scale spawn u Studio-u prema docs/FAZA_06.md. Kod je dodat; income se ne menja do faza 13/14.
-
-## Odloženo — faza 8 (Studio potvrda)
-
-- [ ] Potvrditi poslednji fix: ispušteno jaje ne zaustavlja odbacivanje; probati Tiny/Titanic i različite smerove gledanja.
-- [ ] Potvrditi jačinu odbacivanja 95 horizontalno / 42 vertikalno, ustajanje, vraćanje animacija i pickup-a, ponovljene udarce i reset tokom ragdoll-a.
-- [ ] Potvrditi kontinuirano praćenje, prepreke i zaustavljanje na drop/deposit/smrt/izlazak/safe zonu prema docs/FAZA_08.md.
-- [ ] Potvrditi biome/rarity brzine i dva istovremena lopova sa odvojenim Guardian targetima.
-- [ ] Potvrditi regresioni test na legacy Motor6D rig-u; korisnikov rig sa AnimationConstraint zglobovima već aktivira ragdoll.
-
-## Odloženo — faza 9 (Studio potvrda)
-
-- [ ] Potvrditi lobby deposit -> vizuelni Egg Tool, sacuvane metadata/ownership, jedan zapis i Tool po UID-u, equip/unequip bez dupliranja, respawn u istoj sesiji i dva igraca prema docs/FAZA_09.md.
-
-## Odloženo — faza 10 (Studio potvrda)
-
-- [ ] Potvrditi dodelu/cleanup vlasnika, kapacitet šest jaja, respawn i red čekanja sa tri igrača/dva plota prema docs/FAZA_10.md.
-
-## Aktivno — faza 11 (Studio potvrda)
-
-- [ ] Potvrditi sivi/crveni preview, slobodno postavljanje na Place, granice/razmak/udaljenost/kapacitet, ownership, trošenje bez dupliranja, respawn i multiplayer prema docs/FAZA_11.md.
+Pročitati GAMEPLAY.md pre rada. Implementirati jednu fazu po jednu. Završene provere uklonjene su iz liste na osnovu izričite korisničke potvrde, ne samo prolaska build-a.
 
 ## Sledece faze — tek nakon potvrde prethodne
-- [ ] Faza 12: HatchService, rarity timer, countdown, weighted monster pool i zamena jajeta monsterom.
-- [ ] Faza 13: MonsterConfig/MonsterService, modeli i metadata, income formula i trajni slot ownership.
-- [ ] Faza 14: centralni IncomeService i zbir Cash/sec svih monstera vlasnika.
+- [ ] Faza 12 (preostale provere): weighted pool, metadata, kapacitet šest mesta i multiplayer cleanup prema docs/FAZA_12.md. Hatch i nasleđivanje veličine korisnik je potvrdio; koriste se privremeni modeli.
+- [ ] Faza 14: Studio potvrda centralne Cash isplate, zbira CashPerSecond, decimalne zarade, respawna i odvojenih prihoda dva igrača prema docs/FAZA_14.md.
 - [ ] Faza 15: treadmill shop, konfiguracija Starter/Metal/Turbo/Neon/Void, server naplata, ownership i zamena na plotu.
 - [ ] Faza 16: povezati postojeci Index UI, unlock tek na hatch-u, detalji, Best Size Found, globalni/per-biome counts i DataStore pamcenje; zatim objediniti sa fazom 17.
 - [ ] Faza 17: PlayerDataService za sve podatke iz GAMEPLAY.md, stabilni UID-evi, autosave/PlayerRemoving/BindToClose, obrada load/save gresaka i zastita od prepisivanja podataka neuspesnog load-a.

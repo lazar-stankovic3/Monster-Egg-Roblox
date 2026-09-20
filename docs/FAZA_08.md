@@ -1,6 +1,6 @@
 # Faza 8 — GuardianService
 
-Status (2026-09-18): kod je dodat; faza 8 je i dalje aktivna. Korisnik je potvrdio da ragdoll radi nakon AnimationConstraint ispravke. Poslednja izmena protiv sudara ispuštenog jajeta i odbačenog igrača još čeka Studio potvrdu. Faza 7 je potvrđena; faza 9 nije započeta. Rojo build prolazi, ali ne potvrđuje runtime ponašanje.
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 
 ## Evidencija urađenog
 
@@ -10,7 +10,7 @@ Status (2026-09-18): kod je dodat; faza 8 je i dalje aktivna. Korisnik je potvrd
 - GuardianHitService i GuardianRagdoll LocalScript: odbacivanje, privremeni zglobovi i collision delovi, prekid animacija, vraćanje kontrole i blokada pickup-a dok traje ragdoll.
 - Podrška za Motor6D i noviji AnimationConstraint; ranija greška „No supported body Motor6D joints“ otkrila je nedostajuću podršku. Korisnik je zatim potvrdio ragdoll.
 - Jačina odbacivanja povećana na 95 horizontalno / 42 vertikalno na zahtev korisnika.
-- Poslednji fix: samo pogođeni karakter i ispušteno jaje privremeno ne kolidiraju; ostaju sudari jajeta sa terenom i drugim igračima. Ova promena još čeka test.
+- Poslednji fix: samo pogođeni karakter i ispušteno jaje privremeno ne kolidiraju; ostaju sudari jajeta sa terenom i drugim igračima. Ova promena je potvrđena korisnikovim testiranjem 2026-09-20.
 
 ## Pravilo
 

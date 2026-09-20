@@ -3,7 +3,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 local Inventory = require(script.Parent:WaitForChild("EggInventoryService"))
 local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
+local HatchService = require(script.Parent:WaitForChild("HatchService"))
 PlotService.Start()
+HatchService.Start()
 
 -- Also support Studio sessions where only the script folders were synced.
 local remote = ReplicatedStorage:FindFirstChild("PlaceEggEvent")
@@ -46,8 +48,16 @@ remote.OnServerEvent:Connect(function(player, uid, point)
 		end
 	end
 	Placement.Move(egg, Placement.GetFrame(plot.Place, point, size))
+	local prepared = HatchService.Prepare(egg)
+	if not prepared then egg:Destroy(); return end
 	-- Validation, consumption and publication never yield; repeated clicks cannot duplicate a UID.
-	if Inventory.ConsumeEquipped(player, uid) then egg.Parent = plot.PlacedEggs else egg:Destroy() end
+	if Inventory.ConsumeEquipped(player, uid) then
+		egg.Parent = plot.PlacedEggs
+		HatchService.Begin(egg, plot, prepared)
+	else
+		prepared.monster:Destroy()
+		egg:Destroy()
+	end
 end)
 
 Players.PlayerRemoving:Connect(function(player) lastRequest[player] = nil end)

@@ -1,4 +1,6 @@
-﻿# Faza 10 — PlotService
+# Faza 10 — PlotService
+
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 
 Prilagođeno 2026-09-20 na korisnikov zahtev za slobodno postavljanje jajeta.
 
@@ -6,4 +8,4 @@ PlotService koristi postojeće Workspace.Plots modele sa direktnim, usidrenim Pl
 
 Šest slotova sada znači kapacitet šest slobodno postavljenih jaja. Nema fiksnih Slot1–Slot6 Part-ova niti PlotOrigin zahteva. Servis kreira i čisti samo namenski runtime folder PlacedEggs. Postojeći Build i ostali delovi mape ostaju sačuvani.
 
-Postavka, atributi i objedinjeni Studio test dodele i postavljanja: [FAZA_11.md](FAZA_11.md). Faza 10 i dalje čeka Studio potvrdu; nije označena kao prošla.
+Postavka, atributi i objedinjeni Studio test dodele i postavljanja: [FAZA_11.md](FAZA_11.md). Faza 10 je potvrđena korisnikovim Studio testiranjem 2026-09-20.

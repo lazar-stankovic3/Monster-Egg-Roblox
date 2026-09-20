@@ -1,6 +1,6 @@
 # Faza 11 — Slobodno postavljanje jajeta
 
-Status: implementirano 2026-09-20 na korisnikov zahtev; čeka Studio test. Provere faza 9 i 10 nisu označene kao prošle.
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 
 ## Postavka postojećih plotova
 
@@ -39,5 +39,5 @@ Server kreira PlacedEggs (Folder) u svakom ispravnom plotu. Folder je isključiv
 7. Unequip i smrt uklanjaju preview. Izlazak vlasnika prazni PlacedEggs i oslobađa plot. Za test reda čekanja privremeno koristi dva plota i tri igrača.
 8. Proveri da trening, krađa, Guardian i deposit i dalje rade i da nema crvenih Output grešaka.
 
-Rojo build potvrđuje pakovanje, ne runtime raycast, izgled preview-a i multiplayer ponašanje. Ove provere ostaju otvorene do Studio potvrde.
+Rojo build potvrđuje pakovanje, ne runtime raycast, izgled preview-a i multiplayer ponašanje. Ove provere korisnik je potvrdio 2026-09-20.
 

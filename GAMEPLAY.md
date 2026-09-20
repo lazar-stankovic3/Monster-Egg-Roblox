@@ -1,5 +1,10 @@
 # Steal a Monster Egg — trajni kontekst
 
+## Važeći status — 2026-09-20
+
+Korisnik je izričito potvrdio da je testirao sve dosadašnje faze. **Faze 1–11 su završene i potvrđene**, uključujući ranije odložene provere i poslednje ispravke. Faza 13 je potvrđena korisnikovim testiranjem. Aktivna je faza 14 — IncomeService; implementirana i čeka Studio potvrdu prema docs/FAZA_14.md. Ovaj status zamenjuje sve ranije navode o nepotvrđenim fazama u istorijskim zapisima ispod.
+
+
 ## Gameplay loop
 
 Igrac trenira Speed na treadmill-u, odlazi u biome, krade monster egg i bezi od Guardian-a nazad u lobby. Lobby prebacuje jaje u inventory/hotbar. Igrac postavlja jaje na svoj plot; posle hatch timer-a dobija monstera koji ostaje u slotu i proizvodi Cash/sec. Cash kupuje bolje treadmill-e, veci Speed olaksava kradju u tezim biomima, a tezi biomi imaju bolja jaja i monstere. Monster se otkljucava u Index-u tek pri prvom hatch-u.
@@ -45,9 +50,9 @@ LocalScripts za UI. Ciljno Remotes folder; faza 3 koristi eksplicitno trazeni Re
 ## Postojece stanje
 
 Korisnik je potvrdio postojeci EggSystem (pickup/carry/deposit/respawn), PlayerStats i Training/Treadmill sa SpeedGain. Kod se nalazi u src/server. Mapa, modeli i postojeci Index UI nisu sacuvani u ovom Rojo repozitorijumu; postojece Studio asset-e treba sacuvati.
-Faza 3 kod je dodat; runtime potvrda u Studio jos nije uradjena. Uputstvo: docs/FAZA_03.md. Preostali zadaci: TODO.md.
+Faza 3 je implementirana i korisnik je potvrdio Studio testiranje 2026-09-20. Uputstvo: docs/FAZA_03.md. Preostali zadaci: TODO.md.
 
-## Nastavak rada — 2026-09-18
+## Istorijski zapis — 2026-09-18
 
 Istorijski zapis; za trenutno stanje videti noviji zapis ispod.
 
@@ -59,21 +64,24 @@ Korisnik je potvrdio da ragdoll radi nakon dodavanja podrške za AnimationConstr
 
 Rojo build prolazi, ali proverava pakovanje, ne fizičko ponašanje u Studio-u. Detalji i preostali testovi: docs/FAZA_08.md i TODO.md. Mapa i modeli ostaju u korisnikovom Studio projektu; čuvati postojeće asset-e.
 
-## Nastavak rada — 2026-09-19
+## Istorijski zapis — 2026-09-19
 
 Na korisnikov zahtev za nastavak implementirana je faza 9. Nepotvrdjeni Studio testovi faze 8 su ostali odlozeni, bez oznacavanja da su prosli. Aktivna faza je 9, prema docs/FAZA_09.md.
 
 EggInventoryService stvara zapis po UID-u i vizuelni Tool u Backpack-u pri lobby deposit-u. Tool cuva metadata i OwnerUserId, ima zavaren nekolizioni model jajeta i ne moze se rucno ispustiti. Equip premesta istu instancu. Naknadno je na zahtev korisnika uklonjeno ograničenje prikaza: jaje u ruci zadržava punu originalnu veličinu i Size/Scale. Server obnavlja Tool-ove nakon respawna u istoj sesiji. DataStore jos nije implementiran. Sledeci korak je Studio test faze 9, ne faza 10.
 
-## Nastavak rada — 2026-09-20
+## Istorijski zapis — 2026-09-20
 
 Na korisnikov zahtev „ajmo dalje” implementirana je faza 10. Provere faze 9 ostaju odložene, bez oznake da su prošle. Ovaj zapis zamenjuje ranije uputstvo da je aktivna faza 9.
 
 PlotService automatski dodeljuje pripremljene Workspace.Plots modele igračima, održava OwnerUserId i šest početnih slotova, oslobađa plot na izlasku i dodeljuje ga sledećem igraču koji čeka. Respawn ne menja plot. Studio mapa zahteva postavku prema docs/FAZA_10.md; postojeći asset-i nisu menjani. Aktivna faza je 10 i čeka Studio potvrdu. Placement ostaje za fazu 11.
 
 
-## Nastavak — slobodno postavljanje, 2026-09-20
+## Istorijski zapis — slobodno postavljanje, 2026-09-20
 
 Korisnik je izričito zatražio preview i klik bilo gde na svom Place Part-u: providno sivo za dozvoljeno, crveno za nedozvoljeno, bez zelene. Implementirana je faza 11 i PlotService prilagođen postojećim Plot1–Plot6 modelima. Nema generisanja fiksnih slotova; SlotCapacity=6 označava limit jaja. PlacedEggs je namenski runtime folder. Studio mapa nije menjana iz repozitorijuma.
 
 Aktivna faza je 11, prema docs/FAZA_11.md. Provere faza 9 i 10 ostaju otvorene. Hatch ostaje za fazu 12. Preview i postavljeno jaje koriste punu originalnu veličinu Tool-a, bez umanjivanja, uz očuvane Size/Scale atribute. Nema persistence-a do faze 17.
+
+
+Korisnik je potvrdio da se monster stvorio u fazi 12 i zatražio nasleđivanje veličine bez umanjivanja prema otisku jajeta. Monster koristi isti Scale kao jaje (0.7/1/1.4/1.9/2.6). Ostale provere faze 12 ostaju otvorene.

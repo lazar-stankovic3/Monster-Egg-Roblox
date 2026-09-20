@@ -1,6 +1,6 @@
 # Faza 5 — RarityConfig
 
-Status: `RarityConfig` je dodat i EggRoller sada koristi isti centralni izvor za validaciju rarity-ja. Faza 4 je korisničkim izborom odložena bez Studio potvrde; njen test ostaje u `FAZA_04.md`.
+Status 2026-09-20: završeno i potvrđeno korisnikovim testiranjem u Roblox Studio-u. Sve faze 1–11 i ranije odložene provere su potvrđene. Test koraci ispod ostaju kao referenca za regresiju.
 
 ## Fajlovi
 
