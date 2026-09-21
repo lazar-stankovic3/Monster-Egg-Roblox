@@ -105,6 +105,7 @@ local function snapshot(player)
 		PlacedEggs = eggs,
 		Monsters = monsters,
 		IndexUnlocks = IndexService.Export(player),
+		ProcessedReceipts = (states[player] and states[player].processedReceipts) or {},
 		SavedAt = os.time(),
 		-- This is the timestamp paired with the saved Cash/monster snapshot. Updating it
 		-- on autosave also makes crash recovery bounded without replaying paid online time.
@@ -116,7 +117,8 @@ local function validData(data)
 	return data == nil or (type(data) == "table" and data.Version == 1
 		and type(data.Stats) == "table" and type(data.EggInventory) == "table"
 		and type(data.PlacedEggs) == "table" and type(data.Monsters) == "table"
-		and type(data.IndexUnlocks) == "table")
+		and type(data.IndexUnlocks) == "table"
+		and (data.ProcessedReceipts == nil or type(data.ProcessedReceipts) == "table"))
 end
 
 local function retry(callback)
@@ -230,6 +232,7 @@ local function loadPlayer(player)
 	if data == nil then
 		data = { Version = 1, Stats = { Speed = 0, Cash = 1000 }, OwnedTreadmill = 1, SlotCapacity = 6,
 			EggInventory = {}, PlacedEggs = {}, Monsters = {}, IndexUnlocks = {},
+			ProcessedReceipts = {},
 			SavedAt = now, LastLogoutTime = now }
 		local legacyOk, legacy = retry(function() return legacyStore:GetAsync("u_" .. player.UserId) end)
 		if not legacyOk then
@@ -248,6 +251,7 @@ local function loadPlayer(player)
 			data.IndexUnlocks = legacy.Unlocks
 		end
 	end
+	state.processedReceipts = data.ProcessedReceipts or {}
 	local applied, applyError = pcall(apply, player, data)
 	if states[player] ~= state then return end
 	if not applied then
@@ -305,6 +309,12 @@ savePlayer = function(player, state, preparedSnapshot)
 					end
 				end
 			end
+			if old and type(old.ProcessedReceipts) == "table" then
+				data.ProcessedReceipts = data.ProcessedReceipts or {}
+				for purchaseId, timestamp in pairs(old.ProcessedReceipts) do
+					data.ProcessedReceipts[purchaseId] = timestamp
+				end
+			end
 			return data
 		end)
 	end)
@@ -322,6 +332,60 @@ savePlayer = function(player, state, preparedSnapshot)
 		if player.Parent == Players then player:SetAttribute("PlayerDataStatus", "SaveFailed"); player:SetAttribute("IndexDataStatus", "SaveFailed") end
 		warn("[PlayerDataService] Save failed for " .. player.Name .. ": " .. tostring(result))
 	end
+end
+
+-- Atomically records the receipt in the same profile update that grants Cash/Speed.
+-- A retried Roblox receipt therefore cannot grant the same product twice.
+function Service.ProcessProductReceipt(player, purchaseId, grant)
+	local state = states[player]
+	if not state or not state.loaded or state.closing or player:GetAttribute("PlayerDataStatus") ~= "Ready" then
+		return false
+	end
+	if type(purchaseId) ~= "string" or purchaseId == "" or type(grant) ~= "table" then return false end
+	local statName = grant.Stat
+	local amount = tonumber(grant.Amount)
+	local minimum = tonumber(grant.Minimum)
+	if statName ~= "Cash" and statName ~= "Speed" then return false end
+	if amount and (not finite(amount) or amount <= 0) then return false end
+	if minimum and (not finite(minimum) or minimum < 0) then return false end
+	if not amount and not minimum then return false end
+
+	local deadline = os.clock() + 20
+	while state.saving and states[player] == state and os.clock() < deadline do task.wait(0.1) end
+	if states[player] ~= state or state.saving or state.closing then return false end
+	state.saving = true
+	local newlyGranted = false
+	local ok, result = retry(function()
+		return store:UpdateAsync("u_" .. player.UserId, function(old)
+			if not validData(old) or old == nil then error("Player profile is unavailable") end
+			old.ProcessedReceipts = old.ProcessedReceipts or {}
+			if old.ProcessedReceipts[purchaseId] ~= nil then
+				newlyGranted = false
+				return old
+			end
+			local current = tonumber(old.Stats[statName]) or 0
+			if not finite(current) or current < 0 then current = 0 end
+			old.Stats[statName] = if amount then current + amount else math.max(current, minimum)
+			old.ProcessedReceipts[purchaseId] = os.time()
+			newlyGranted = true
+			return old
+		end)
+	end)
+	state.saving = false
+	if not ok or not result then
+		warn("[PlayerDataService] Product receipt save failed: " .. tostring(result))
+		return false
+	end
+
+	state.processedReceipts = result.ProcessedReceipts or state.processedReceipts or {}
+	if newlyGranted then
+		local stats = player:FindFirstChild("Stats")
+		local value = stats and stats:FindFirstChild(statName)
+		if not value or not value:IsA("NumberValue") then return false end
+		if amount then value.Value += amount else value.Value = math.max(value.Value, minimum) end
+		player:SetAttribute("LastShopPurchase", statName)
+	end
+	return true
 end
 
 local function finalizePlayer(player)

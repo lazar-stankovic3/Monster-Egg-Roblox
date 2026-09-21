@@ -2,9 +2,9 @@ local Config = {}
 
 Config.Levels = {
 	{ Capacity = 6, Cost = 0 },
-	{ Capacity = 8, Cost = 5000 },
-	{ Capacity = 12, Cost = 50000 },
-	{ Capacity = 16, Cost = 500000 },
+	{ Capacity = 8, Cost = 250000 },
+	{ Capacity = 12, Cost = 250000000 },
+	{ Capacity = 16, Cost = 250000000000 },
 }
 
 function Config.GetLevel(capacity)

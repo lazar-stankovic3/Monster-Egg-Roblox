@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local NumberFormatter = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("NumberFormatter"))
 
 local player = Players.LocalPlayer
 local event = ReplicatedStorage:WaitForChild("PlotUpgradeEvent", 15)
@@ -72,7 +73,7 @@ local function refresh()
 		button.BackgroundColor3 = Color3.fromRGB(80, 90, 105)
 		button.Active = false
 	elseif status == "NotEnoughCash" then
-		button.Text = string.format("Need $%s for %d slots", tostring(cost), nextCapacity)
+		button.Text = string.format("Need $%s for %d slots", NumberFormatter.Format(cost), nextCapacity)
 		button.BackgroundColor3 = Color3.fromRGB(200, 75, 70)
 		button.Active = true
 	elseif status == "DataNotReady" then
@@ -80,7 +81,7 @@ local function refresh()
 		button.BackgroundColor3 = Color3.fromRGB(200, 130, 55)
 		button.Active = true
 	else
-		button.Text = string.format("UPGRADE TO %d — $%s", nextCapacity, tostring(cost))
+		button.Text = string.format("UPGRADE TO %d - $%s", nextCapacity, NumberFormatter.Format(cost))
 		button.BackgroundColor3 = Color3.fromRGB(55, 165, 225)
 		button.Active = true
 	end

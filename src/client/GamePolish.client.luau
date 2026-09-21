@@ -7,19 +7,10 @@ local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local Config = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("PolishConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 
 local POP = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local STUDS = "rbxassetid://6927295847"
-
-local function formatNumber(value)
-	value = tonumber(value) or 0
-	local absolute = math.abs(value)
-	if absolute >= 1e9 then return string.format("%.2fB", value / 1e9) end
-	if absolute >= 1e6 then return string.format("%.2fM", value / 1e6) end
-	if absolute >= 1e3 then return string.format("%.1fK", value / 1e3) end
-	if value == math.floor(value) then return tostring(math.floor(value)) end
-	return string.format("%.1f", value)
-end
 
 local function playSound(id, volume, speed)
 	if type(id) ~= "string" or id == "" then return nil end
@@ -115,9 +106,9 @@ bannerScale.Parent = banner
 gui.Parent = playerGui
 
 local function refreshRates()
-	cashRate.Text = "$" .. formatNumber(player:GetAttribute("CashPerSecond")) .. " / sec"
+	cashRate.Text = "$" .. NumberFormatter.Format(player:GetAttribute("CashPerSecond")) .. " / sec"
 	local training = tonumber(player:GetAttribute("TrainingSpeedPerSecond")) or 0
-	speedRate.Text = if training > 0 then "+" .. formatNumber(training) .. " Speed / sec" else "Speed training: idle"
+	speedRate.Text = if training > 0 then "+" .. NumberFormatter.Format(training) .. " Speed / sec" else "Speed training: idle"
 	speedRate.TextColor3 = if training > 0 then Color3.fromRGB(85, 190, 255) else Color3.fromRGB(170, 178, 195)
 end
 
@@ -180,7 +171,7 @@ task.spawn(function()
 			local delta = value - oldCash
 			oldCash = value
 			if delta > 0 and (tonumber(player:GetAttribute("CashPerSecond")) or 0) > 0 then
-				floatingText("+$" .. formatNumber(delta), Color3.fromRGB(92, 255, 116), UDim2.new(1, -145, 0, 112))
+				floatingText("+$" .. NumberFormatter.Format(delta), Color3.fromRGB(92, 255, 116), UDim2.new(1, -145, 0, 112))
 			end
 		end)
 	end
@@ -189,7 +180,7 @@ task.spawn(function()
 			local delta = value - oldSpeed
 			oldSpeed = value
 			if delta > 0 and (tonumber(player:GetAttribute("TrainingSpeedPerSecond")) or 0) > 0 then
-				floatingText("+" .. formatNumber(delta) .. " SPEED", Color3.fromRGB(85, 190, 255), UDim2.fromScale(0.5, 0.72))
+				floatingText("+" .. NumberFormatter.Format(delta) .. " SPEED", Color3.fromRGB(85, 190, 255), UDim2.fromScale(0.5, 0.72))
 			end
 		end)
 	end
@@ -327,7 +318,7 @@ task.spawn(function()
 					text.Size = UDim2.fromScale(1, 1)
 					text.BackgroundTransparency = 1
 					text.Font = Enum.Font.FredokaOne
-					text.Text = "+$" .. formatNumber(income)
+					text.Text = "+$" .. NumberFormatter.Format(income)
 					text.TextColor3 = Color3.fromRGB(92, 255, 116)
 					text.TextSize = 22
 					text.TextStrokeTransparency = 0

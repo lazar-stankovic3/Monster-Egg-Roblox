@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Modules:WaitForChild("PlotUpgradeConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 
 local Service = {}
@@ -68,8 +69,8 @@ function Service.TryUpgrade(player)
 	plot:SetAttribute("SlotCapacity", nextDefinition.Capacity)
 	player:SetAttribute("PlotUpgradeStatus", "Purchased")
 	publish(player)
-	print(string.format("[PlotUpgradeService] %s upgraded plot to %d slots for $%d",
-		player.Name, nextDefinition.Capacity, nextDefinition.Cost))
+	print(string.format("[PlotUpgradeService] %s upgraded plot to %d slots for $%s",
+		player.Name, nextDefinition.Capacity, NumberFormatter.Format(nextDefinition.Cost)))
 	return true
 end
 

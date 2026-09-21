@@ -594,8 +594,13 @@ GuardianConfig.RagdollGroundedSeconds = 0.4
 
 local biomeBaseSpeed: { [string]: number } = {
 	HatchlingFields = 25,
-	Volcano = 45,
-	Void = 70,
+	BioMarsh = 40,
+	SporeLab = 54,
+	Volcano = 68,
+	CryoSector = 83,
+	FossilLab = 97,
+	MutationCore = 111,
+	CosmicIncubator = 126,
 }
 GuardianConfig.BiomeBaseSpeed = biomeBaseSpeed
 
@@ -827,17 +832,17 @@ local function definition(name, biome, rarity, income, modelName, indexId, color
 end
 
 Config.Definitions = {
-	green_slime = definition("Green Slime", "HatchlingFields", "Common", 2, "GreenSlime", "green_slime", Color3.fromRGB(80, 210, 100)),
-	leaf_bunny = definition("Leaf Bunny", "HatchlingFields", "Uncommon", 4, "LeafBunny", "leaf_bunny", Color3.fromRGB(170, 225, 100)),
-	baby_goblin = definition("Baby Goblin", "HatchlingFields", "Rare", 8, "BabyGoblin", "baby_goblin", Color3.fromRGB(90, 150, 65)),
-	forest_dragon = definition("Forest Dragon", "HatchlingFields", "Legendary", 20, "ForestDragon", "forest_dragon", Color3.fromRGB(35, 125, 75)),
+	green_slime = definition("Green Slime", "HatchlingFields", "Common", 25, "GreenSlime", "green_slime", Color3.fromRGB(80, 210, 100)),
+	leaf_bunny = definition("Leaf Bunny", "HatchlingFields", "Uncommon", 75, "LeafBunny", "leaf_bunny", Color3.fromRGB(170, 225, 100)),
+	baby_goblin = definition("Baby Goblin", "HatchlingFields", "Rare", 250, "BabyGoblin", "baby_goblin", Color3.fromRGB(90, 150, 65)),
+	forest_dragon = definition("Forest Dragon", "HatchlingFields", "Legendary", 1200, "ForestDragon", "forest_dragon", Color3.fromRGB(35, 125, 75)),
 	-- First production monster model. Put the rig at ServerStorage.MonsterModels.Floragon.
 	-- Its walk animation is read from an Animation named "WalkAnimation" inside the model,
 	-- or from the model's WalkAnimationId attribute.
-	floragon = definition("Floragon", "HatchlingFields", "Legendary", 20, "Floragon", "floragon", Color3.fromRGB(74, 176, 91)),
-	magma_slime = definition("Magma Slime", "Volcano", "Rare", 12, "MagmaSlime", "magma_slime", Color3.fromRGB(255, 115, 35)),
-	flame_goblin = definition("Flame Goblin", "Volcano", "Epic", 25, "FlameGoblin", "flame_goblin", Color3.fromRGB(210, 65, 40)),
-	inferno_dragon = definition("Inferno Dragon", "Volcano", "Legendary", 60, "InfernoDragon", "inferno_dragon", Color3.fromRGB(150, 35, 35)),
+	floragon = definition("Floragon", "HatchlingFields", "Legendary", 1500, "Floragon", "floragon", Color3.fromRGB(74, 176, 91)),
+	magma_slime = definition("Magma Slime", "Volcano", "Rare", 20000000, "MagmaSlime", "magma_slime", Color3.fromRGB(255, 115, 35)),
+	flame_goblin = definition("Flame Goblin", "Volcano", "Epic", 80000000, "FlameGoblin", "flame_goblin", Color3.fromRGB(210, 65, 40)),
+	inferno_dragon = definition("Inferno Dragon", "Volcano", "Legendary", 400000000, "InfernoDragon", "inferno_dragon", Color3.fromRGB(150, 35, 35)),
 }
 
 function Config.CalculateIncome(monsterId, rarity, size)
@@ -874,14 +879,60 @@ return Config
       </Item>
       <Item class="ModuleScript" referent="11">
         <Properties>
+          <string name="Name">NumberFormatter</string>
+          <string name="Source"><![CDATA[--!strict
+
+local Formatter = {}
+
+local suffixes = {
+	"", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc",
+	"Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg",
+}
+
+local function trim(text: string): string
+	text = string.gsub(text, "(%..-)0+$", "%1")
+	return string.gsub(text, "%.$", "")
+end
+
+function Formatter.Format(value: unknown): string
+	local number = tonumber(value)
+	if not number or number ~= number then return "0" end
+	if number == math.huge then return "∞" end
+	if number == -math.huge then return "-∞" end
+	local absolute = math.abs(number)
+	if absolute < 1000 then
+		if number == math.floor(number) then return string.format("%.0f", number) end
+		return trim(string.format("%.1f", number))
+	end
+
+	local group = math.floor(math.log10(absolute) / 3)
+	if group >= #suffixes then return string.format("%.2e", number) end
+	local scaled = number / (10 ^ (group * 3))
+	local formatted
+	if math.abs(scaled) >= 100 then
+		formatted = string.format("%.0f", scaled)
+	elseif math.abs(scaled) >= 10 then
+		formatted = string.format("%.1f", scaled)
+	else
+		formatted = string.format("%.2f", scaled)
+	end
+	return trim(formatted) .. suffixes[group + 1]
+end
+
+return Formatter
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
           <string name="Name">PlotUpgradeConfig</string>
           <string name="Source"><![CDATA[local Config = {}
 
 Config.Levels = {
 	{ Capacity = 6, Cost = 0 },
-	{ Capacity = 8, Cost = 5000 },
-	{ Capacity = 12, Cost = 50000 },
-	{ Capacity = 16, Cost = 500000 },
+	{ Capacity = 8, Cost = 250000 },
+	{ Capacity = 12, Cost = 250000000 },
+	{ Capacity = 16, Cost = 250000000000 },
 }
 
 function Config.GetLevel(capacity)
@@ -895,7 +946,7 @@ return Config
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="12">
+      <Item class="ModuleScript" referent="13">
         <Properties>
           <string name="Name">PolishConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -936,7 +987,86 @@ return Config
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="13">
+      <Item class="ModuleScript" referent="14">
+        <Properties>
+          <string name="Name">ProgressionConfig</string>
+          <string name="Source"><![CDATA[--!strict
+
+local Config = {}
+
+-- BaseIncomeBand je cilj za buduce monstere pre rarity/size multiplikatora.
+-- RecommendedSpeed je stat, ne Humanoid.WalkSpeed.
+Config.Biomes = {
+	HatchlingFields = {
+		Order = 1,
+		DisplayName = "Hatchling Fields",
+		RecommendedSpeed = 100,
+		BaseIncomeBand = { 25, 1500 },
+	},
+	BioMarsh = {
+		Order = 2,
+		DisplayName = "Bio Marsh",
+		RecommendedSpeed = 2500,
+		BaseIncomeBand = { 2000, 100000 },
+	},
+	SporeLab = {
+		Order = 3,
+		DisplayName = "Spore Lab",
+		RecommendedSpeed = 50000,
+		BaseIncomeBand = { 200000, 10000000 },
+	},
+	Volcano = {
+		Order = 4,
+		DisplayName = "Volcano",
+		RecommendedSpeed = 1000000,
+		BaseIncomeBand = { 20000000, 1000000000 },
+	},
+	CryoSector = {
+		Order = 5,
+		DisplayName = "Cryo Sector",
+		RecommendedSpeed = 25000000,
+		BaseIncomeBand = { 2000000000, 100000000000 },
+	},
+	FossilLab = {
+		Order = 6,
+		DisplayName = "Fossil Lab",
+		RecommendedSpeed = 500000000,
+		BaseIncomeBand = { 200000000000, 10000000000000 },
+	},
+	MutationCore = {
+		Order = 7,
+		DisplayName = "Mutation Core",
+		RecommendedSpeed = 10000000000,
+		BaseIncomeBand = { 20000000000000, 1000000000000000 },
+	},
+	CosmicIncubator = {
+		Order = 8,
+		DisplayName = "Cosmic Incubator",
+		RecommendedSpeed = 250000000000,
+		BaseIncomeBand = { 2000000000000000, 100000000000000000 },
+	},
+}
+
+local function normalize(value: string): string
+	return string.lower((string.gsub(value, "[^%w]", "")))
+end
+
+function Config.GetBiome(value: unknown)
+	if type(value) ~= "string" then return nil end
+	local wanted = normalize(value)
+	for key, definition in pairs(Config.Biomes) do
+		if normalize(key) == wanted or normalize(definition.DisplayName) == wanted then
+			return definition, key
+		end
+	end
+	return nil
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="15">
         <Properties>
           <string name="Name">RarityConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -969,23 +1099,23 @@ local definitions: { [string]: Definition } = {
 	},
 	Uncommon = {
 		Name = "Uncommon",
-		IncomeMultiplier = 1.5,
+		IncomeMultiplier = 2,
 	},
 	Rare = {
 		Name = "Rare",
-		IncomeMultiplier = 2.5,
+		IncomeMultiplier = 5,
 	},
 	Epic = {
 		Name = "Epic",
-		IncomeMultiplier = 5,
+		IncomeMultiplier = 12,
 	},
 	Legendary = {
 		Name = "Legendary",
-		IncomeMultiplier = 10,
+		IncomeMultiplier = 30,
 	},
 	Mythic = {
 		Name = "Mythic",
-		IncomeMultiplier = 25,
+		IncomeMultiplier = 75,
 	},
 }
 
@@ -1022,7 +1152,106 @@ return RarityConfig
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="14">
+      <Item class="ModuleScript" referent="16">
+        <Properties>
+          <string name="Name">ShopConfig</string>
+          <string name="Source"><![CDATA[--!strict
+
+-- Zameni 0 stvarnim ID-em iz Creator Dashboard-a.
+-- Developer Products mogu da se kupe vise puta.
+-- Game Pass kartice su namerno iskljucene dok njihovi perkovi ne budu implementirani.
+
+local Config = {}
+
+Config.GamePasses = {
+	EXTRASLOTSCard = {
+		Id = 0,
+		Attribute = "OwnsExtraSlotsPass",
+		Enabled = false,
+	},
+	FASTHATCHCard = {
+		Id = 0,
+		Attribute = "OwnsFastHatchPass",
+		Enabled = false,
+	},
+	LUCKYCard = {
+		Id = 0,
+		Attribute = "OwnsLuckyPass",
+		Enabled = false,
+	},
+	VIPCard = {
+		Id = 0,
+		Attribute = "OwnsVIPPass",
+		Enabled = false,
+	},
+}
+
+Config.DeveloperProducts = {
+	["SPEED+10Card"] = {
+		Id = 0,
+		DisplayName = "SPEED +1K",
+		Grant = { Stat = "Speed", Amount = 1000 },
+	},
+	["SPEED+25Card"] = {
+		Id = 0,
+		DisplayName = "SPEED +1M",
+		Grant = { Stat = "Speed", Amount = 1000000 },
+	},
+	["SPEED+50Card"] = {
+		Id = 0,
+		DisplayName = "SPEED +1B",
+		Grant = { Stat = "Speed", Amount = 1000000000 },
+	},
+	MAXSPEEDCard = {
+		Id = 0,
+		DisplayName = "COSMIC SPEED",
+		Grant = { Stat = "Speed", Minimum = 250000000000 },
+	},
+	["10KCOINSCard"] = {
+		Id = 0,
+		DisplayName = "250K COINS",
+		Grant = { Stat = "Cash", Amount = 250000 },
+	},
+	["100KCOINSCard"] = {
+		Id = 0,
+		DisplayName = "250M COINS",
+		Grant = { Stat = "Cash", Amount = 250000000 },
+	},
+	["1MCOINSCard"] = {
+		Id = 0,
+		DisplayName = "250B COINS",
+		Grant = { Stat = "Cash", Amount = 250000000000 },
+	},
+	["10MCOINSCard"] = {
+		Id = 0,
+		DisplayName = "250T COINS",
+		Grant = { Stat = "Cash", Amount = 250000000000000 },
+	},
+}
+
+function Config.GetProductById(productId: number)
+	for cardName, definition in pairs(Config.DeveloperProducts) do
+		if definition.Id == productId and productId > 0 then
+			return cardName, definition
+		end
+	end
+	return nil
+end
+
+function Config.GetPassById(passId: number)
+	for cardName, definition in pairs(Config.GamePasses) do
+		if definition.Id == passId and passId > 0 then
+			return cardName, definition
+		end
+	end
+	return nil
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="17">
         <Properties>
           <string name="Name">SizeConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -1049,11 +1278,11 @@ export type Definition = {
 local SizeConfig = {}
 
 local definitions: { [string]: Definition } = {
-	Tiny = { Name = "Tiny", IncomeMultiplier = 0.7, CarryMovementPenalty = 0 },
+	Tiny = { Name = "Tiny", IncomeMultiplier = 0.65, CarryMovementPenalty = 0 },
 	Normal = { Name = "Normal", IncomeMultiplier = 1, CarryMovementPenalty = 0 },
-	Large = { Name = "Large", IncomeMultiplier = 1.5, CarryMovementPenalty = 0.05 },
-	Huge = { Name = "Huge", IncomeMultiplier = 2.5, CarryMovementPenalty = 0.1 },
-	Titanic = { Name = "Titanic", IncomeMultiplier = 5, CarryMovementPenalty = 0.2 },
+	Large = { Name = "Large", IncomeMultiplier = 1.75, CarryMovementPenalty = 0.05 },
+	Huge = { Name = "Huge", IncomeMultiplier = 3.5, CarryMovementPenalty = 0.1 },
+	Titanic = { Name = "Titanic", IncomeMultiplier = 8, CarryMovementPenalty = 0.2 },
 }
 
 SizeConfig.Definitions = definitions
@@ -1095,32 +1324,35 @@ return SizeConfig
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="15">
+      <Item class="ModuleScript" referent="18">
         <Properties>
           <string name="Name">TreadmillConfig</string>
           <string name="Source"><![CDATA[local Config = {}
 Config.Levels = {
 	{ Name = "Starter", Cost = 0, SpeedGain = 20, Color = Color3.fromRGB(110, 120, 130) },
-	{ Name = "Metal", Cost = 1000, SpeedGain = 60, Color = Color3.fromRGB(160, 175, 190) },
-	{ Name = "Turbo", Cost = 10000, SpeedGain = 200, Color = Color3.fromRGB(230, 120, 35) },
-	{ Name = "Neon", Cost = 100000, SpeedGain = 700, Color = Color3.fromRGB(55, 230, 190) },
-	{ Name = "Void", Cost = 1000000, SpeedGain = 2000, Color = Color3.fromRGB(145, 65, 220) },
+	{ Name = "Marsh Runner", Cost = 50000, SpeedGain = 125, Color = Color3.fromRGB(75, 190, 110) },
+	{ Name = "Spore Turbo", Cost = 5000000, SpeedGain = 2500, Color = Color3.fromRGB(175, 90, 210) },
+	{ Name = "Magma Drive", Cost = 500000000, SpeedGain = 50000, Color = Color3.fromRGB(235, 90, 35) },
+	{ Name = "Cryo Reactor", Cost = 50000000000, SpeedGain = 1250000, Color = Color3.fromRGB(90, 200, 255) },
+	{ Name = "Fossil Engine", Cost = 5000000000000, SpeedGain = 25000000, Color = Color3.fromRGB(194, 156, 92) },
+	{ Name = "Mutation Core", Cost = 500000000000000, SpeedGain = 500000000, Color = Color3.fromRGB(80, 255, 125) },
+	{ Name = "Cosmic Drive", Cost = 50000000000000000, SpeedGain = 12500000000, Color = Color3.fromRGB(145, 65, 220) },
 }
 return Config
 ]]></string>
         </Properties>
       </Item>
     </Item>
-    <Item class="RemoteEvent" referent="16">
+    <Item class="RemoteEvent" referent="19">
       <Properties>
         <string name="Name">PlaceEggEvent</string>
       </Properties>
     </Item>
-    <Item class="Folder" referent="17">
+    <Item class="Folder" referent="20">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="18">
+      <Item class="ModuleScript" referent="21">
         <Properties>
           <string name="Name">Hello</string>
           <string name="Source"><![CDATA[return function()
@@ -1131,20 +1363,21 @@ end
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="19">
+  <Item class="ServerScriptService" referent="22">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="20">
+    <Item class="Folder" referent="23">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="21">
+      <Item class="ModuleScript" referent="24">
         <Properties>
           <string name="Name">BiomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ProgressionConfig = require(ReplicatedStorage.Modules:WaitForChild("ProgressionConfig"))
 
 local BiomeService = {}
 local CHECK_INTERVAL = 0.15
@@ -1183,11 +1416,16 @@ local function collectBiomes(folder)
 			continue
 		end
 		local zone = model:FindFirstChild("BiomeZone")
-		local recommended = model:GetAttribute("RecommendedSpeed")
+		local displayName = model:GetAttribute("DisplayName")
+		local configured = ProgressionConfig.GetBiome(model.Name)
+			or ProgressionConfig.GetBiome(displayName)
+		local recommended = if configured then configured.RecommendedSpeed else model:GetAttribute("RecommendedSpeed")
+		if configured and model:GetAttribute("RecommendedSpeed") ~= recommended then
+			model:SetAttribute("RecommendedSpeed", recommended)
+		end
 		if not zone or not zone:IsA("BasePart") or not isFiniteNumber(recommended) or recommended < 0 then
 			continue
 		end
-		local displayName = model:GetAttribute("DisplayName")
 		table.insert(biomes, {
 			Model = model,
 			Zone = zone,
@@ -1304,7 +1542,7 @@ return BiomeService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="22">
+      <Item class="Script" referent="25">
         <Properties>
           <string name="Name">BiomeSystem</string>
           <token name="RunContext">0</token>
@@ -1313,7 +1551,7 @@ BiomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="23">
+      <Item class="ModuleScript" referent="26">
         <Properties>
           <string name="Name">EggInventoryService</string>
           <string name="Source"><![CDATA[-- Server-owned inventory records; Tools are replaceable views of those records.
@@ -1599,7 +1837,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="24">
+      <Item class="Script" referent="27">
         <Properties>
           <string name="Name">EggPlacementSystem</string>
           <token name="RunContext">0</token>
@@ -1671,7 +1909,7 @@ remote:SetAttribute("ServerReady", true)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="25">
+      <Item class="Script" referent="28">
         <Properties>
           <string name="Name">EggSystem</string>
           <token name="RunContext">0</token>
@@ -3178,7 +3416,7 @@ end
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="26">
+      <Item class="ModuleScript" referent="29">
         <Properties>
           <string name="Name">GuardianHitService</string>
           <string name="Source"><![CDATA[-- Server-only temporary ragdoll. Original joints and movement settings are restored.
@@ -3377,7 +3615,7 @@ return HitService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="27">
+      <Item class="Script" referent="30">
         <Properties>
           <string name="Name">GuardianService</string>
           <token name="RunContext">0</token>
@@ -3658,7 +3896,7 @@ print("[GuardianService] Phase 8 guardian service loaded.")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="28">
+      <Item class="ModuleScript" referent="31">
         <Properties>
           <string name="Name">HatchService</string>
           <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
@@ -3667,6 +3905,7 @@ local Config = require(ReplicatedStorage.Modules:WaitForChild("HatchConfig"))
 local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
 local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
 local IndexService = require(script.Parent:WaitForChild("IndexService"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local Players = game:GetService("Players")
 local Service = {}
 local active = {}
@@ -3748,7 +3987,7 @@ function Service.Start()
 				gui.StudsOffsetWorldSpace = target.Position - entry.monster.PrimaryPart.Position
 					+ Vector3.new(0, monsterSize.Y / 2 + 1.5, 0)
 				gui.Size = UDim2.fromOffset(230, 75)
-                entry.label.Text = string.format("%s\n%s | %s\n$%g/sec", entry.monster:GetAttribute("MonsterName"), entry.monster:GetAttribute("Rarity"), entry.monster:GetAttribute("Size"), entry.monster:GetAttribute("FinalIncome"))
+				entry.label.Text = string.format("%s\n%s | %s\n$%s/sec", entry.monster:GetAttribute("MonsterName"), entry.monster:GetAttribute("Rarity"), entry.monster:GetAttribute("Size"), NumberFormatter.Format(entry.monster:GetAttribute("FinalIncome")))
 				gui.Parent = entry.monster
 				-- Keep one occupied entry in PlacedEggs; monsters count toward the same six-place limit.
 				active[egg] = nil
@@ -3777,7 +4016,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="29">
+      <Item class="ModuleScript" referent="32">
         <Properties>
           <string name="Name">IncomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -3827,7 +4066,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="30">
+      <Item class="Script" referent="33">
         <Properties>
           <string name="Name">IncomeSystem</string>
           <token name="RunContext">0</token>
@@ -3836,7 +4075,7 @@ IncomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="31">
+      <Item class="ModuleScript" referent="34">
         <Properties>
           <string name="Name">IndexService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -3928,7 +4167,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="32">
+      <Item class="Script" referent="35">
         <Properties>
           <string name="Name">IndexSystem</string>
           <token name="RunContext">0</token>
@@ -3937,13 +4176,14 @@ IndexService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="33">
+      <Item class="ModuleScript" referent="36">
         <Properties>
           <string name="Name">MonsterService</string>
           <string name="Source"><![CDATA[local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local Config = require(ReplicatedStorage.Modules:WaitForChild("MonsterConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 local Service = {}
 
@@ -4090,8 +4330,8 @@ function Service.AddLabel(monster)
 	label.TextStrokeTransparency = 0.3
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 22
-	label.Text = string.format("%s\n%s | %s\n$%g/sec", monster:GetAttribute("MonsterName"),
-		monster:GetAttribute("Rarity"), monster:GetAttribute("Size"), monster:GetAttribute("FinalIncome"))
+	label.Text = string.format("%s\n%s | %s\n$%s/sec", monster:GetAttribute("MonsterName"),
+		monster:GetAttribute("Rarity"), monster:GetAttribute("Size"), NumberFormatter.Format(monster:GetAttribute("FinalIncome")))
 	label.Parent = gui
 	gui.Parent = monster
 end
@@ -4100,7 +4340,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="34">
+      <Item class="ModuleScript" referent="37">
         <Properties>
           <string name="Name">MonsterWanderService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4260,7 +4500,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="35">
+      <Item class="Script" referent="38">
         <Properties>
           <string name="Name">MonsterWanderSystem</string>
           <token name="RunContext">0</token>
@@ -4269,7 +4509,7 @@ MonsterWanderService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="36">
+      <Item class="ModuleScript" referent="39">
         <Properties>
           <string name="Name">PlayerDataService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4379,6 +4619,7 @@ local function snapshot(player)
 		PlacedEggs = eggs,
 		Monsters = monsters,
 		IndexUnlocks = IndexService.Export(player),
+		ProcessedReceipts = (states[player] and states[player].processedReceipts) or {},
 		SavedAt = os.time(),
 		-- This is the timestamp paired with the saved Cash/monster snapshot. Updating it
 		-- on autosave also makes crash recovery bounded without replaying paid online time.
@@ -4390,7 +4631,8 @@ local function validData(data)
 	return data == nil or (type(data) == "table" and data.Version == 1
 		and type(data.Stats) == "table" and type(data.EggInventory) == "table"
 		and type(data.PlacedEggs) == "table" and type(data.Monsters) == "table"
-		and type(data.IndexUnlocks) == "table")
+		and type(data.IndexUnlocks) == "table"
+		and (data.ProcessedReceipts == nil or type(data.ProcessedReceipts) == "table"))
 end
 
 local function retry(callback)
@@ -4504,6 +4746,7 @@ local function loadPlayer(player)
 	if data == nil then
 		data = { Version = 1, Stats = { Speed = 0, Cash = 1000 }, OwnedTreadmill = 1, SlotCapacity = 6,
 			EggInventory = {}, PlacedEggs = {}, Monsters = {}, IndexUnlocks = {},
+			ProcessedReceipts = {},
 			SavedAt = now, LastLogoutTime = now }
 		local legacyOk, legacy = retry(function() return legacyStore:GetAsync("u_" .. player.UserId) end)
 		if not legacyOk then
@@ -4522,6 +4765,7 @@ local function loadPlayer(player)
 			data.IndexUnlocks = legacy.Unlocks
 		end
 	end
+	state.processedReceipts = data.ProcessedReceipts or {}
 	local applied, applyError = pcall(apply, player, data)
 	if states[player] ~= state then return end
 	if not applied then
@@ -4579,6 +4823,12 @@ savePlayer = function(player, state, preparedSnapshot)
 					end
 				end
 			end
+			if old and type(old.ProcessedReceipts) == "table" then
+				data.ProcessedReceipts = data.ProcessedReceipts or {}
+				for purchaseId, timestamp in pairs(old.ProcessedReceipts) do
+					data.ProcessedReceipts[purchaseId] = timestamp
+				end
+			end
 			return data
 		end)
 	end)
@@ -4596,6 +4846,60 @@ savePlayer = function(player, state, preparedSnapshot)
 		if player.Parent == Players then player:SetAttribute("PlayerDataStatus", "SaveFailed"); player:SetAttribute("IndexDataStatus", "SaveFailed") end
 		warn("[PlayerDataService] Save failed for " .. player.Name .. ": " .. tostring(result))
 	end
+end
+
+-- Atomically records the receipt in the same profile update that grants Cash/Speed.
+-- A retried Roblox receipt therefore cannot grant the same product twice.
+function Service.ProcessProductReceipt(player, purchaseId, grant)
+	local state = states[player]
+	if not state or not state.loaded or state.closing or player:GetAttribute("PlayerDataStatus") ~= "Ready" then
+		return false
+	end
+	if type(purchaseId) ~= "string" or purchaseId == "" or type(grant) ~= "table" then return false end
+	local statName = grant.Stat
+	local amount = tonumber(grant.Amount)
+	local minimum = tonumber(grant.Minimum)
+	if statName ~= "Cash" and statName ~= "Speed" then return false end
+	if amount and (not finite(amount) or amount <= 0) then return false end
+	if minimum and (not finite(minimum) or minimum < 0) then return false end
+	if not amount and not minimum then return false end
+
+	local deadline = os.clock() + 20
+	while state.saving and states[player] == state and os.clock() < deadline do task.wait(0.1) end
+	if states[player] ~= state or state.saving or state.closing then return false end
+	state.saving = true
+	local newlyGranted = false
+	local ok, result = retry(function()
+		return store:UpdateAsync("u_" .. player.UserId, function(old)
+			if not validData(old) or old == nil then error("Player profile is unavailable") end
+			old.ProcessedReceipts = old.ProcessedReceipts or {}
+			if old.ProcessedReceipts[purchaseId] ~= nil then
+				newlyGranted = false
+				return old
+			end
+			local current = tonumber(old.Stats[statName]) or 0
+			if not finite(current) or current < 0 then current = 0 end
+			old.Stats[statName] = if amount then current + amount else math.max(current, minimum)
+			old.ProcessedReceipts[purchaseId] = os.time()
+			newlyGranted = true
+			return old
+		end)
+	end)
+	state.saving = false
+	if not ok or not result then
+		warn("[PlayerDataService] Product receipt save failed: " .. tostring(result))
+		return false
+	end
+
+	state.processedReceipts = result.ProcessedReceipts or state.processedReceipts or {}
+	if newlyGranted then
+		local stats = player:FindFirstChild("Stats")
+		local value = stats and stats:FindFirstChild(statName)
+		if not value or not value:IsA("NumberValue") then return false end
+		if amount then value.Value += amount else value.Value = math.max(value.Value, minimum) end
+		player:SetAttribute("LastShopPurchase", statName)
+	end
+	return true
 end
 
 local function finalizePlayer(player)
@@ -4666,7 +4970,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="37">
+      <Item class="Script" referent="40">
         <Properties>
           <string name="Name">PlayerDataSystem</string>
           <token name="RunContext">0</token>
@@ -4676,7 +4980,7 @@ print("[PlayerDataSystem] Bootstrap script executed.")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="38">
+      <Item class="Script" referent="41">
         <Properties>
           <string name="Name">PlayerStats</string>
           <token name="RunContext">0</token>
@@ -4835,7 +5139,7 @@ end
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="39">
+      <Item class="ModuleScript" referent="42">
         <Properties>
           <string name="Name">PlotService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4966,7 +5270,7 @@ return PlotService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="40">
+      <Item class="Script" referent="43">
         <Properties>
           <string name="Name">PlotSystem</string>
           <token name="RunContext">0</token>
@@ -4975,13 +5279,14 @@ PlotService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="41">
+      <Item class="ModuleScript" referent="44">
         <Properties>
           <string name="Name">PlotUpgradeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Modules:WaitForChild("PlotUpgradeConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 
 local Service = {}
@@ -5048,8 +5353,8 @@ function Service.TryUpgrade(player)
 	plot:SetAttribute("SlotCapacity", nextDefinition.Capacity)
 	player:SetAttribute("PlotUpgradeStatus", "Purchased")
 	publish(player)
-	print(string.format("[PlotUpgradeService] %s upgraded plot to %d slots for $%d",
-		player.Name, nextDefinition.Capacity, nextDefinition.Cost))
+	print(string.format("[PlotUpgradeService] %s upgraded plot to %d slots for $%s",
+		player.Name, nextDefinition.Capacity, NumberFormatter.Format(nextDefinition.Cost)))
 	return true
 end
 
@@ -5093,7 +5398,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="42">
+      <Item class="Script" referent="45">
         <Properties>
           <string name="Name">PlotUpgradeSystem</string>
           <token name="RunContext">0</token>
@@ -5102,7 +5407,110 @@ PlotUpgradeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="43">
+      <Item class="ModuleScript" referent="46">
+        <Properties>
+          <string name="Name">ShopService</string>
+          <string name="Source"><![CDATA[local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Modules:WaitForChild("ShopConfig"))
+local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+
+local Service = {}
+local started = false
+
+local function publishPassOwnership(player, definition, owns)
+	player:SetAttribute(definition.Attribute, owns == true)
+end
+
+local function refreshPasses(player)
+	for _, definition in pairs(Config.GamePasses) do
+		publishPassOwnership(player, definition, false)
+		if definition.Enabled and type(definition.Id) == "number" and definition.Id > 0 then
+			task.spawn(function()
+				local ok, owns = pcall(
+					MarketplaceService.UserOwnsGamePassAsync,
+					MarketplaceService,
+					player.UserId,
+					definition.Id
+				)
+				if player.Parent == Players then
+					if ok then
+						publishPassOwnership(player, definition, owns)
+					else
+						warn("[ShopService] Game Pass ownership check failed for " .. player.Name)
+					end
+				end
+			end)
+		end
+	end
+end
+
+local function processReceipt(receiptInfo)
+	local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
+	if not player or player:GetAttribute("PlayerDataStatus") ~= "Ready" then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	local _, definition = Config.GetProductById(receiptInfo.ProductId)
+	if not definition then
+		warn("[ShopService] Unknown Developer Product ID: " .. tostring(receiptInfo.ProductId))
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	local ok, granted = pcall(
+		PlayerDataService.ProcessProductReceipt,
+		player,
+		tostring(receiptInfo.PurchaseId),
+		definition.Grant
+	)
+	if not ok then
+		warn("[ShopService] Receipt processing failed: " .. tostring(granted))
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	return if granted
+		then Enum.ProductPurchaseDecision.PurchaseGranted
+		else Enum.ProductPurchaseDecision.NotProcessedYet
+end
+
+function Service.Start()
+	if started then return end
+	started = true
+	PlayerDataService.Start()
+
+	Players.PlayerAdded:Connect(refreshPasses)
+	for _, player in ipairs(Players:GetPlayers()) do refreshPasses(player) end
+
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+		if not purchased then return end
+		local _, definition = Config.GetPassById(passId)
+		if definition and definition.Enabled then
+			publishPassOwnership(player, definition, true)
+		end
+	end)
+
+	-- Roblox dozvoljava samo jedan ProcessReceipt callback u iskustvu.
+	MarketplaceService.ProcessReceipt = processReceipt
+	print("[ShopService] Shop controller loaded.")
+end
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="47">
+        <Properties>
+          <string name="Name">ShopSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local ShopService = require(script.Parent:WaitForChild("ShopService"))
+
+ShopService.Start()
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="48">
         <Properties>
           <string name="Name">TreadmillService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -5110,6 +5518,7 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Modules:WaitForChild("TreadmillConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 local Service = {}
 local states = {}
@@ -5220,9 +5629,9 @@ local function publish(player, state)
 	player:SetAttribute("TreadmillLevel", state.level)
 	player:SetAttribute("OwnedTreadmill", definition.Name)
 	state.plot:SetAttribute("TreadmillLevel", state.level)
-	state.prompt.ObjectText = definition.Name .. " | +" .. definition.SpeedGain .. " Speed/sec"
+	state.prompt.ObjectText = definition.Name .. " | +" .. NumberFormatter.Format(definition.SpeedGain) .. " Speed/sec"
 	local nextLevel = Config.Levels[state.level + 1]
-	state.prompt.ActionText = if nextLevel then "Upgrade: " .. nextLevel.Name .. " ($" .. nextLevel.Cost .. ")" else "MAX LEVEL"
+	state.prompt.ActionText = if nextLevel then "Upgrade: " .. nextLevel.Name .. " ($" .. NumberFormatter.Format(nextLevel.Cost) .. ")" else "MAX LEVEL"
 	state.prompt.Enabled = nextLevel ~= nil
 end
 
@@ -5390,7 +5799,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="44">
+      <Item class="Script" referent="49">
         <Properties>
           <string name="Name">TreadmillSystem</string>
           <token name="RunContext">0</token>
@@ -5401,27 +5810,27 @@ TreadmillService.Start()
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="45">
+  <Item class="SoundService" referent="50">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="46">
+  <Item class="StarterPlayer" referent="51">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="47">
+    <Item class="StarterPlayerScripts" referent="52">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="48">
+      <Item class="LocalScript" referent="53">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[print("Hello world, from client!")
 ]]></string>
         </Properties>
-        <Item class="LocalScript" referent="49">
+        <Item class="LocalScript" referent="54">
           <Properties>
             <string name="Name">AreaLighting</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -5729,12 +6138,13 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="50">
+        <Item class="LocalScript" referent="55">
           <Properties>
             <string name="Name">BiomeUI</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local NumberFormatter = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("NumberFormatter"))
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local event = ReplicatedStorage:WaitForChild("BiomeUIEvent")
@@ -5873,13 +6283,7 @@ recommended.Parent = panel
 --------------------------------------------------
 
 local function formatSpeed(value)
-
-	if value == math.floor(value) then
-		return string.format("%.0f", value)
-	end
-
-	return string.format("%.1f", value)
-
+	return NumberFormatter.Format(value)
 end
 
 --------------------------------------------------
@@ -6128,7 +6532,7 @@ event:FireServer("Ready")
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="51">
+        <Item class="LocalScript" referent="56">
           <Properties>
             <string name="Name">CustomMovementAnimations</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -6173,7 +6577,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="52">
+        <Item class="LocalScript" referent="57">
           <Properties>
             <string name="Name">EggPlacement</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -6296,7 +6700,7 @@ player.CharacterRemoving:Connect(clear)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="53">
+        <Item class="LocalScript" referent="58">
           <Properties>
             <string name="Name">GamePolish</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -6308,19 +6712,10 @@ local Debris = game:GetService("Debris")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local Config = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("PolishConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 
 local POP = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local STUDS = "rbxassetid://6927295847"
-
-local function formatNumber(value)
-	value = tonumber(value) or 0
-	local absolute = math.abs(value)
-	if absolute >= 1e9 then return string.format("%.2fB", value / 1e9) end
-	if absolute >= 1e6 then return string.format("%.2fM", value / 1e6) end
-	if absolute >= 1e3 then return string.format("%.1fK", value / 1e3) end
-	if value == math.floor(value) then return tostring(math.floor(value)) end
-	return string.format("%.1f", value)
-end
 
 local function playSound(id, volume, speed)
 	if type(id) ~= "string" or id == "" then return nil end
@@ -6416,9 +6811,9 @@ bannerScale.Parent = banner
 gui.Parent = playerGui
 
 local function refreshRates()
-	cashRate.Text = "$" .. formatNumber(player:GetAttribute("CashPerSecond")) .. " / sec"
+	cashRate.Text = "$" .. NumberFormatter.Format(player:GetAttribute("CashPerSecond")) .. " / sec"
 	local training = tonumber(player:GetAttribute("TrainingSpeedPerSecond")) or 0
-	speedRate.Text = if training > 0 then "+" .. formatNumber(training) .. " Speed / sec" else "Speed training: idle"
+	speedRate.Text = if training > 0 then "+" .. NumberFormatter.Format(training) .. " Speed / sec" else "Speed training: idle"
 	speedRate.TextColor3 = if training > 0 then Color3.fromRGB(85, 190, 255) else Color3.fromRGB(170, 178, 195)
 end
 
@@ -6481,7 +6876,7 @@ task.spawn(function()
 			local delta = value - oldCash
 			oldCash = value
 			if delta > 0 and (tonumber(player:GetAttribute("CashPerSecond")) or 0) > 0 then
-				floatingText("+$" .. formatNumber(delta), Color3.fromRGB(92, 255, 116), UDim2.new(1, -145, 0, 112))
+				floatingText("+$" .. NumberFormatter.Format(delta), Color3.fromRGB(92, 255, 116), UDim2.new(1, -145, 0, 112))
 			end
 		end)
 	end
@@ -6490,7 +6885,7 @@ task.spawn(function()
 			local delta = value - oldSpeed
 			oldSpeed = value
 			if delta > 0 and (tonumber(player:GetAttribute("TrainingSpeedPerSecond")) or 0) > 0 then
-				floatingText("+" .. formatNumber(delta) .. " SPEED", Color3.fromRGB(85, 190, 255), UDim2.fromScale(0.5, 0.72))
+				floatingText("+" .. NumberFormatter.Format(delta) .. " SPEED", Color3.fromRGB(85, 190, 255), UDim2.fromScale(0.5, 0.72))
 			end
 		end)
 	end
@@ -6628,7 +7023,7 @@ task.spawn(function()
 					text.Size = UDim2.fromScale(1, 1)
 					text.BackgroundTransparency = 1
 					text.Font = Enum.Font.FredokaOne
-					text.Text = "+$" .. formatNumber(income)
+					text.Text = "+$" .. NumberFormatter.Format(income)
 					text.TextColor3 = Color3.fromRGB(92, 255, 116)
 					text.TextSize = 22
 					text.TextStrokeTransparency = 0
@@ -6644,7 +7039,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="54">
+        <Item class="LocalScript" referent="59">
           <Properties>
             <string name="Name">GuardianRagdoll</string>
             <string name="Source"><![CDATA[-- Match the local Humanoid/animation controller to the server's hit state.
@@ -6716,7 +7111,7 @@ if player.Character then task.spawn(setup, player.Character) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="55">
+        <Item class="LocalScript" referent="60">
           <Properties>
             <string name="Name">IndexUI</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -6724,6 +7119,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("MonsterConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local unlocks = player:WaitForChild("IndexUnlocks")
 local previews = ReplicatedStorage:WaitForChild("IndexPreviews")
 local playerGui = player:WaitForChild("PlayerGui")
@@ -6840,7 +7236,7 @@ local function bind(gui)
 			table.insert(bindings, { slot = slot, entry = entry })
 		end
 	end
-	scroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroller.AutomaticCanvasSize = Enum.AutomaticSize.X
 	scroller.CanvasSize = UDim2.fromOffset(0, 0)
 	refresh = function()
 		if currentGui ~= gui or not gui.Parent then return end
@@ -6866,7 +7262,7 @@ local function bind(gui)
 		details.MonsterName.Text = if record then def.MonsterName elseif def then "???" else "Select a Creature"
 		details.Rarity.Text = if record then def.Rarity else "???"
 		details.Biome.Text = "Biome: " .. (if record then (if def.Biome == "HatchlingFields" then "Hatchling Fields" else def.Biome) else "???")
-		details.BaseIncome.Text = if record then string.format("Base Income: $%g/sec", def.BaseIncome) else "Base Income: ???"
+		details.BaseIncome.Text = if record then "Base Income: $" .. NumberFormatter.Format(def.BaseIncome) .. "/sec" else "Base Income: ???"
 		details.BestSizeFound.Text = "Best Size Found: " .. (if record then record:GetAttribute("BestSizeFound") or "???" else "???")
 		details.Status.Text = if record then "UNLOCKED" elseif def then "LOCKED" else "SELECT A CREATURE"
 		viewport(details.ImageHolder, if def then def.IndexId else "", record ~= nil)
@@ -6906,7 +7302,7 @@ if existing then task.spawn(bind, existing) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="56">
+        <Item class="LocalScript" referent="61">
           <Properties>
             <string name="Name">LavaAnimation (Thermal Chamber)</string>
             <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
@@ -6992,7 +7388,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="57">
+        <Item class="LocalScript" referent="62">
           <Properties>
             <string name="Name">MonsterAnimations</string>
             <string name="Source"><![CDATA[local ContentProvider = game:GetService("ContentProvider")
@@ -7100,11 +7496,13 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="58">
+        <Item class="LocalScript" referent="63">
           <Properties>
             <string name="Name">OfflineIncomeUI</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local NumberFormatter = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("NumberFormatter"))
 
 local shown = false
 
@@ -7147,7 +7545,7 @@ local function showOfflineIncome()
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextSize = 22
 	label.TextWrapped = true
-	label.Text = string.format("Welcome back!\nYou earned $%s in %s", string.format("%.1f", amount), formatDuration(seconds))
+	label.Text = string.format("Welcome back!\nYou earned $%s in %s", NumberFormatter.Format(amount), formatDuration(seconds))
 	label.Parent = frame
 	gui.Parent = player:WaitForChild("PlayerGui")
 	task.delay(8, function() if gui.Parent then gui:Destroy() end end)
@@ -7160,11 +7558,12 @@ task.defer(showOfflineIncome)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="59">
+        <Item class="LocalScript" referent="64">
           <Properties>
             <string name="Name">PlotUpgradeUI</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local NumberFormatter = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("NumberFormatter"))
 
 local player = Players.LocalPlayer
 local event = ReplicatedStorage:WaitForChild("PlotUpgradeEvent", 15)
@@ -7237,7 +7636,7 @@ local function refresh()
 		button.BackgroundColor3 = Color3.fromRGB(80, 90, 105)
 		button.Active = false
 	elseif status == "NotEnoughCash" then
-		button.Text = string.format("Need $%s for %d slots", tostring(cost), nextCapacity)
+		button.Text = string.format("Need $%s for %d slots", NumberFormatter.Format(cost), nextCapacity)
 		button.BackgroundColor3 = Color3.fromRGB(200, 75, 70)
 		button.Active = true
 	elseif status == "DataNotReady" then
@@ -7245,7 +7644,7 @@ local function refresh()
 		button.BackgroundColor3 = Color3.fromRGB(200, 130, 55)
 		button.Active = true
 	else
-		button.Text = string.format("UPGRADE TO %d — $%s", nextCapacity, tostring(cost))
+		button.Text = string.format("UPGRADE TO %d - $%s", nextCapacity, NumberFormatter.Format(cost))
 		button.BackgroundColor3 = Color3.fromRGB(55, 165, 225)
 		button.Active = true
 	end
@@ -7269,7 +7668,143 @@ refresh()
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="60">
+        <Item class="LocalScript" referent="65">
+          <Properties>
+            <string name="Name">ShopController</string>
+            <string name="Source"><![CDATA[local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local Config = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("ShopConfig"))
+
+local currentShop
+local connections = {}
+
+local function disconnectAll()
+	for _, connection in ipairs(connections) do connection:Disconnect() end
+	table.clear(connections)
+end
+
+local function setButtonText(button, text)
+	if button:IsA("TextButton") then
+		button.Text = text
+		return
+	end
+	for _, descendant in ipairs(button:GetDescendants()) do
+		if descendant:IsA("TextLabel") and string.find(string.lower(descendant.Name), "price") then
+			descendant.Text = text
+			return
+		end
+	end
+end
+
+local function setUnavailable(button, text)
+	button.Active = false
+	button.AutoButtonColor = false
+	setButtonText(button, text)
+end
+
+local function loadPrice(button, id, infoType)
+	task.spawn(function()
+		local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, id, infoType)
+		if currentShop and button:IsDescendantOf(currentShop) then
+			if ok and info and info.IsForSale ~= false then
+				setButtonText(button, "R$ " .. tostring(info.PriceInRobux or "?"))
+			else
+				setUnavailable(button, "UNAVAILABLE")
+			end
+		end
+	end)
+end
+
+local function bindProduct(section, cardName, definition)
+	local card = section:FindFirstChild(cardName)
+	local button = card and card:FindFirstChild("BuyButton")
+	if not button or not button:IsA("GuiButton") then
+		warn("[ShopController] Missing BuyButton for " .. cardName)
+		return
+	end
+	local productName = card:FindFirstChild("ProductName")
+	if productName and productName:IsA("TextLabel") and definition.DisplayName then
+		productName.Text = definition.DisplayName
+	end
+	if type(definition.Id) ~= "number" or definition.Id <= 0 then
+		setUnavailable(button, "SET PRODUCT ID")
+		return
+	end
+	loadPrice(button, definition.Id, Enum.InfoType.Product)
+	table.insert(connections, button.Activated:Connect(function()
+		MarketplaceService:PromptProductPurchase(player, definition.Id)
+	end))
+end
+
+local function bindPass(section, cardName, definition)
+	local card = section:FindFirstChild(cardName)
+	local button = card and card:FindFirstChild("BuyButton")
+	if not button or not button:IsA("GuiButton") then
+		warn("[ShopController] Missing BuyButton for " .. cardName)
+		return
+	end
+	if not definition.Enabled then
+		setUnavailable(button, "COMING SOON")
+		return
+	end
+	if type(definition.Id) ~= "number" or definition.Id <= 0 then
+		setUnavailable(button, "SET PASS ID")
+		return
+	end
+	loadPrice(button, definition.Id, Enum.InfoType.GamePass)
+	table.insert(connections, button.Activated:Connect(function()
+		if player:GetAttribute(definition.Attribute) == true then return end
+		MarketplaceService:PromptGamePassPurchase(player, definition.Id)
+	end))
+	local function refreshOwned()
+		if player:GetAttribute(definition.Attribute) == true then
+			setUnavailable(button, "OWNED")
+		end
+	end
+	table.insert(connections, player:GetAttributeChangedSignal(definition.Attribute):Connect(refreshOwned))
+	refreshOwned()
+end
+
+local function bind(shop)
+	if currentShop == shop then return end
+	disconnectAll()
+	currentShop = shop
+
+	local frame = shop:WaitForChild("Frame", 10)
+	local bottom = frame and frame:WaitForChild("BottomFrame", 10)
+	local scrolling = bottom and bottom:WaitForChild("ScrollingFrame", 10)
+	local passes = scrolling and scrolling:FindFirstChild("PassesSection")
+	local speed = scrolling and scrolling:FindFirstChild("SpeedSection")
+	local coins = scrolling and scrolling:FindFirstChild("CoinsSection")
+	if not passes or not speed or not coins then
+		warn("[ShopController] Shop hierarchy is missing PassesSection, SpeedSection or CoinsSection")
+		return
+	end
+
+	for cardName, definition in pairs(Config.GamePasses) do
+		bindPass(passes, cardName, definition)
+	end
+	for cardName, definition in pairs(Config.DeveloperProducts) do
+		local section = if string.find(cardName, "COINS") then coins else speed
+		bindProduct(section, cardName, definition)
+	end
+
+	print("[ShopController] Existing Shop UI connected.")
+end
+
+local existing = playerGui:FindFirstChild("Shop")
+if existing and existing:IsA("ScreenGui") then task.spawn(bind, existing) end
+playerGui.ChildAdded:Connect(function(child)
+	if child.Name == "Shop" and child:IsA("ScreenGui") then task.spawn(bind, child) end
+end)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="66">
           <Properties>
             <string name="Name">TreadmillAnimation</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -7344,7 +7879,7 @@ if player.Character then task.spawn(setup, player.Character) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="61">
+        <Item class="LocalScript" referent="67">
           <Properties>
             <string name="Name">TreadmillControls</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -7375,13 +7910,13 @@ end)
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="62">
+  <Item class="Workspace" referent="68">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
       <bool name="NeedsPivotMigration">false</bool>
     </Properties>
-    <Item class="Part" referent="63">
+    <Item class="Part" referent="69">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

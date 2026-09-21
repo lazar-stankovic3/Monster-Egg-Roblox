@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ProgressionConfig = require(ReplicatedStorage.Modules:WaitForChild("ProgressionConfig"))
 
 local BiomeService = {}
 local CHECK_INTERVAL = 0.15
@@ -39,11 +40,16 @@ local function collectBiomes(folder)
 			continue
 		end
 		local zone = model:FindFirstChild("BiomeZone")
-		local recommended = model:GetAttribute("RecommendedSpeed")
+		local displayName = model:GetAttribute("DisplayName")
+		local configured = ProgressionConfig.GetBiome(model.Name)
+			or ProgressionConfig.GetBiome(displayName)
+		local recommended = if configured then configured.RecommendedSpeed else model:GetAttribute("RecommendedSpeed")
+		if configured and model:GetAttribute("RecommendedSpeed") ~= recommended then
+			model:SetAttribute("RecommendedSpeed", recommended)
+		end
 		if not zone or not zone:IsA("BasePart") or not isFiniteNumber(recommended) or recommended < 0 then
 			continue
 		end
-		local displayName = model:GetAttribute("DisplayName")
 		table.insert(biomes, {
 			Model = model,
 			Zone = zone,

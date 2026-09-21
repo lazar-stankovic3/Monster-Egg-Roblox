@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Modules:WaitForChild("TreadmillConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 local Service = {}
 local states = {}
@@ -113,9 +114,9 @@ local function publish(player, state)
 	player:SetAttribute("TreadmillLevel", state.level)
 	player:SetAttribute("OwnedTreadmill", definition.Name)
 	state.plot:SetAttribute("TreadmillLevel", state.level)
-	state.prompt.ObjectText = definition.Name .. " | +" .. definition.SpeedGain .. " Speed/sec"
+	state.prompt.ObjectText = definition.Name .. " | +" .. NumberFormatter.Format(definition.SpeedGain) .. " Speed/sec"
 	local nextLevel = Config.Levels[state.level + 1]
-	state.prompt.ActionText = if nextLevel then "Upgrade: " .. nextLevel.Name .. " ($" .. nextLevel.Cost .. ")" else "MAX LEVEL"
+	state.prompt.ActionText = if nextLevel then "Upgrade: " .. nextLevel.Name .. " ($" .. NumberFormatter.Format(nextLevel.Cost) .. ")" else "MAX LEVEL"
 	state.prompt.Enabled = nextLevel ~= nil
 end
 

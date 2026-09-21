@@ -1,5 +1,7 @@
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local NumberFormatter = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("NumberFormatter"))
 
 local shown = false
 
@@ -42,7 +44,7 @@ local function showOfflineIncome()
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextSize = 22
 	label.TextWrapped = true
-	label.Text = string.format("Welcome back!\nYou earned $%s in %s", string.format("%.1f", amount), formatDuration(seconds))
+	label.Text = string.format("Welcome back!\nYou earned $%s in %s", NumberFormatter.Format(amount), formatDuration(seconds))
 	label.Parent = frame
 	gui.Parent = player:WaitForChild("PlayerGui")
 	task.delay(8, function() if gui.Parent then gui:Destroy() end end)

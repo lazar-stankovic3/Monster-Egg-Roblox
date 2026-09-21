@@ -28,23 +28,23 @@ local definitions: { [string]: Definition } = {
 	},
 	Uncommon = {
 		Name = "Uncommon",
-		IncomeMultiplier = 1.5,
+		IncomeMultiplier = 2,
 	},
 	Rare = {
 		Name = "Rare",
-		IncomeMultiplier = 2.5,
+		IncomeMultiplier = 5,
 	},
 	Epic = {
 		Name = "Epic",
-		IncomeMultiplier = 5,
+		IncomeMultiplier = 12,
 	},
 	Legendary = {
 		Name = "Legendary",
-		IncomeMultiplier = 10,
+		IncomeMultiplier = 30,
 	},
 	Mythic = {
 		Name = "Mythic",
-		IncomeMultiplier = 25,
+		IncomeMultiplier = 75,
 	},
 }
 

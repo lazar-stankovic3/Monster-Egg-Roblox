@@ -9,6 +9,10 @@ Korisnik je izričito potvrdio da je testirao sve dosadašnje faze. **Faze 1–1
 
 Igrac trenira Speed na treadmill-u, odlazi u biome, krade monster egg i bezi od Guardian-a nazad u lobby. Lobby prebacuje jaje u inventory/hotbar. Igrac postavlja jaje na svoj plot; posle hatch timer-a dobija monstera koji ostaje u slotu i proizvodi Cash/sec. Cash kupuje bolje treadmill-e, veci Speed olaksava kradju u tezim biomima, a tezi biomi imaju bolja jaja i monstere. Monster se otkljucava u Index-u tek pri prvom hatch-u.
 
+## Aktivni veliki-brojevi balans - 2026-09-21
+
+Aktivna progresija sada ide od K/M u ranoj igri do B/T/Qa/Qi u kasnim area-ma. Jedini izvor area pragova je `ProgressionConfig`, a UI koristi zajednicki `NumberFormatter`. Treadmill, rarity, size, plot upgrade i Shop paketi uskladjeni su sa tom krivom. Tacne tabele i poznati content gapovi nalaze se u `docs/GAME_BALANCE.md`; ova sekcija ima prednost nad starim primerima balansa u istorijskom delu dokumenta.
+
 ## Pravila arhitekture
 
 - Implementirati jednu fazu po jednu. Ne prelaziti dalje dok trenutna faza nije testirana i potvrdjena.

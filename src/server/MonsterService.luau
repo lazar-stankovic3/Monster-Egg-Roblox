@@ -2,6 +2,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local Config = require(ReplicatedStorage.Modules:WaitForChild("MonsterConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local PlotService = require(script.Parent:WaitForChild("PlotService"))
 local Service = {}
 
@@ -148,8 +149,8 @@ function Service.AddLabel(monster)
 	label.TextStrokeTransparency = 0.3
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 22
-	label.Text = string.format("%s\n%s | %s\n$%g/sec", monster:GetAttribute("MonsterName"),
-		monster:GetAttribute("Rarity"), monster:GetAttribute("Size"), monster:GetAttribute("FinalIncome"))
+	label.Text = string.format("%s\n%s | %s\n$%s/sec", monster:GetAttribute("MonsterName"),
+		monster:GetAttribute("Rarity"), monster:GetAttribute("Size"), NumberFormatter.Format(monster:GetAttribute("FinalIncome")))
 	label.Parent = gui
 	gui.Parent = monster
 end

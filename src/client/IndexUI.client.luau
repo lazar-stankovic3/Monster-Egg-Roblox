@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("MonsterConfig"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local unlocks = player:WaitForChild("IndexUnlocks")
 local previews = ReplicatedStorage:WaitForChild("IndexPreviews")
 local playerGui = player:WaitForChild("PlayerGui")
@@ -119,7 +120,7 @@ local function bind(gui)
 			table.insert(bindings, { slot = slot, entry = entry })
 		end
 	end
-	scroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroller.AutomaticCanvasSize = Enum.AutomaticSize.X
 	scroller.CanvasSize = UDim2.fromOffset(0, 0)
 	refresh = function()
 		if currentGui ~= gui or not gui.Parent then return end
@@ -145,7 +146,7 @@ local function bind(gui)
 		details.MonsterName.Text = if record then def.MonsterName elseif def then "???" else "Select a Creature"
 		details.Rarity.Text = if record then def.Rarity else "???"
 		details.Biome.Text = "Biome: " .. (if record then (if def.Biome == "HatchlingFields" then "Hatchling Fields" else def.Biome) else "???")
-		details.BaseIncome.Text = if record then string.format("Base Income: $%g/sec", def.BaseIncome) else "Base Income: ???"
+		details.BaseIncome.Text = if record then "Base Income: $" .. NumberFormatter.Format(def.BaseIncome) .. "/sec" else "Base Income: ???"
 		details.BestSizeFound.Text = "Best Size Found: " .. (if record then record:GetAttribute("BestSizeFound") or "???" else "???")
 		details.Status.Text = if record then "UNLOCKED" elseif def then "LOCKED" else "SELECT A CREATURE"
 		viewport(details.ImageHolder, if def then def.IndexId else "", record ~= nil)

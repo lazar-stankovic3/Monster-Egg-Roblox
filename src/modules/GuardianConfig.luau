@@ -19,8 +19,13 @@ GuardianConfig.RagdollGroundedSeconds = 0.4
 
 local biomeBaseSpeed: { [string]: number } = {
 	HatchlingFields = 25,
-	Volcano = 45,
-	Void = 70,
+	BioMarsh = 40,
+	SporeLab = 54,
+	Volcano = 68,
+	CryoSector = 83,
+	FossilLab = 97,
+	MutationCore = 111,
+	CosmicIncubator = 126,
 }
 GuardianConfig.BiomeBaseSpeed = biomeBaseSpeed
 

@@ -22,11 +22,11 @@ export type Definition = {
 local SizeConfig = {}
 
 local definitions: { [string]: Definition } = {
-	Tiny = { Name = "Tiny", IncomeMultiplier = 0.7, CarryMovementPenalty = 0 },
+	Tiny = { Name = "Tiny", IncomeMultiplier = 0.65, CarryMovementPenalty = 0 },
 	Normal = { Name = "Normal", IncomeMultiplier = 1, CarryMovementPenalty = 0 },
-	Large = { Name = "Large", IncomeMultiplier = 1.5, CarryMovementPenalty = 0.05 },
-	Huge = { Name = "Huge", IncomeMultiplier = 2.5, CarryMovementPenalty = 0.1 },
-	Titanic = { Name = "Titanic", IncomeMultiplier = 5, CarryMovementPenalty = 0.2 },
+	Large = { Name = "Large", IncomeMultiplier = 1.75, CarryMovementPenalty = 0.05 },
+	Huge = { Name = "Huge", IncomeMultiplier = 3.5, CarryMovementPenalty = 0.1 },
+	Titanic = { Name = "Titanic", IncomeMultiplier = 8, CarryMovementPenalty = 0.2 },
 }
 
 SizeConfig.Definitions = definitions

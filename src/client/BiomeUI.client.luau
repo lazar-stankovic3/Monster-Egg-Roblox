@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local NumberFormatter = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("NumberFormatter"))
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local event = ReplicatedStorage:WaitForChild("BiomeUIEvent")
@@ -139,13 +140,7 @@ recommended.Parent = panel
 --------------------------------------------------
 
 local function formatSpeed(value)
-
-	if value == math.floor(value) then
-		return string.format("%.0f", value)
-	end
-
-	return string.format("%.1f", value)
-
+	return NumberFormatter.Format(value)
 end
 
 --------------------------------------------------

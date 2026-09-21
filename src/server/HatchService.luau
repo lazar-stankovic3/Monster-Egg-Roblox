@@ -4,6 +4,7 @@ local Config = require(ReplicatedStorage.Modules:WaitForChild("HatchConfig"))
 local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
 local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
 local IndexService = require(script.Parent:WaitForChild("IndexService"))
+local NumberFormatter = require(ReplicatedStorage.Modules:WaitForChild("NumberFormatter"))
 local Players = game:GetService("Players")
 local Service = {}
 local active = {}
@@ -85,7 +86,7 @@ function Service.Start()
 				gui.StudsOffsetWorldSpace = target.Position - entry.monster.PrimaryPart.Position
 					+ Vector3.new(0, monsterSize.Y / 2 + 1.5, 0)
 				gui.Size = UDim2.fromOffset(230, 75)
-                entry.label.Text = string.format("%s\n%s | %s\n$%g/sec", entry.monster:GetAttribute("MonsterName"), entry.monster:GetAttribute("Rarity"), entry.monster:GetAttribute("Size"), entry.monster:GetAttribute("FinalIncome"))
+				entry.label.Text = string.format("%s\n%s | %s\n$%s/sec", entry.monster:GetAttribute("MonsterName"), entry.monster:GetAttribute("Rarity"), entry.monster:GetAttribute("Size"), NumberFormatter.Format(entry.monster:GetAttribute("FinalIncome")))
 				gui.Parent = entry.monster
 				-- Keep one occupied entry in PlacedEggs; monsters count toward the same six-place limit.
 				active[egg] = nil
