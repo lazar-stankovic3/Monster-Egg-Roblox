@@ -755,7 +755,8 @@ local function dropEgg(player)
 
 		runUIEvent:FireClient(
 			player,
-			false
+			false,
+			"Dropped"
 		)
 
 		return
@@ -770,7 +771,8 @@ local function dropEgg(player)
 
 		runUIEvent:FireClient(
 			player,
-			false
+			false,
+			"Dropped"
 		)
 
 		return
@@ -811,7 +813,8 @@ local function dropEgg(player)
 
 	runUIEvent:FireClient(
 		player,
-		false
+		false,
+		"Dropped"
 	)
 
 	setEggPhysicsForDrop(egg)
@@ -1276,7 +1279,8 @@ local function depositEgg(player)
 
 	runUIEvent:FireClient(
 		player,
-		false
+		false,
+		"Deposited"
 	)
 
 	eggOriginSpawn[egg] = nil
@@ -1465,3 +1469,32 @@ end
 print(
 	"[EggSystem] Phase 4 egg system loaded."
 )
+
+--------------------------------------------------
+-- PERSISTENCE BOOTSTRAP
+--------------------------------------------------
+-- Some existing Studio places can retain a disabled/missing PlayerDataSystem
+-- Script even while Rojo updates the ModuleScripts. EggSystem is known to run in
+-- those places, so it also starts the idempotent persistence service.
+
+local playerDataOk, playerDataError = pcall(function()
+	local playerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+	playerDataService.Start()
+end)
+
+if playerDataOk then
+	print("[EggSystem] PlayerDataService bootstrap complete.")
+else
+	warn("[EggSystem] PlayerDataService bootstrap failed: " .. tostring(playerDataError))
+end
+
+local plotUpgradeOk, plotUpgradeError = pcall(function()
+	local plotUpgradeService = require(script.Parent:WaitForChild("PlotUpgradeService"))
+	plotUpgradeService.Start()
+end)
+
+if plotUpgradeOk then
+	print("[EggSystem] PlotUpgradeService bootstrap complete.")
+else
+	warn("[EggSystem] PlotUpgradeService bootstrap failed: " .. tostring(plotUpgradeError))
+end

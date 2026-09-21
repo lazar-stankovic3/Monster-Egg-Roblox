@@ -1,4 +1,3 @@
-```lua
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -392,4 +391,3 @@ end)
 --------------------------------------------------
 
 event:FireServer("Ready")
-```

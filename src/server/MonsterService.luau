@@ -36,24 +36,54 @@ end
 
 function Service.Create(egg, monsterId)
 	local definition = Config.Definitions[monsterId]
+	if not definition then error("Unknown monster id: " .. tostring(monsterId)) end
 	local folder = ServerStorage:FindFirstChild("MonsterModels")
 	local source = folder and folder:FindFirstChild(definition.ModelName)
-	local model = source and source:IsA("Model") and source:Clone() or placeholder(definition)
+	local usesCustomModel = source ~= nil and source:IsA("Model")
+	local model = usesCustomModel and source:Clone() or placeholder(definition)
 	for _, item in ipairs(model:GetDescendants()) do
-		if item:IsA("LuaSourceContainer") or item:IsA("JointInstance") or item:IsA("Constraint")
-			or item:IsA("BodyMover") or item:IsA("ProximityPrompt") then item:Destroy() end
+		-- Model templates are data-only, but rig joints/constraints must survive so
+		-- Motor6D/Bone animations can move the monster after it hatches.
+		if item:IsA("LuaSourceContainer") or item:IsA("BodyMover") or item:IsA("ProximityPrompt")
+			or item:IsA("AlignPosition") or item:IsA("AlignOrientation")
+			or item:IsA("LinearVelocity") or item:IsA("AngularVelocity")
+			or item:IsA("VectorForce") then item:Destroy() end
 	end
 	local firstPart
 	for _, item in ipairs(model:GetDescendants()) do
 		if item:IsA("BasePart") then
 			firstPart = firstPart or item
-			item.Anchored = true
 			item.CanCollide, item.CanTouch, item.CanQuery = false, false, true
 			item.AssemblyLinearVelocity, item.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
 		end
 	end
 	if not firstPart then model:Destroy(); error("Monster model has no BasePart: " .. definition.ModelName) end
 	model.PrimaryPart = model.PrimaryPart or firstPart
+	local isRigged = model:FindFirstChildWhichIsA("Motor6D", true) ~= nil
+		or model:FindFirstChildWhichIsA("Bone", true) ~= nil
+	if usesCustomModel and isRigged then
+		-- Create the Animator on the server so every client receives the same valid
+		-- animation host. The visual client script only controls its local track.
+		local animationHost = model:FindFirstChildWhichIsA("Humanoid", true)
+			or model:FindFirstChildWhichIsA("AnimationController", true)
+		if not animationHost then
+			animationHost = Instance.new("AnimationController")
+			animationHost.Name = "MonsterAnimationController"
+			animationHost.Parent = model
+		end
+		if not animationHost:FindFirstChildWhichIsA("Animator") then
+			local animator = Instance.new("Animator")
+			animator.Parent = animationHost
+		end
+	end
+	for _, item in ipairs(model:GetDescendants()) do
+		if item:IsA("BasePart") then
+			-- A rig needs one anchored root and movable limbs. Static/fallback models
+			-- stay fully anchored because their loose decorative parts have no joints.
+			item.Anchored = if usesCustomModel and isRigged then item == model.PrimaryPart else true
+			item.Massless = item ~= model.PrimaryPart
+		end
+	end
 	model:ScaleTo(egg:GetAttribute("Scale"))
 	model:PivotTo(CFrame.new())
 	-- Inherit the egg's size multiplier exactly; never shrink to its footprint.

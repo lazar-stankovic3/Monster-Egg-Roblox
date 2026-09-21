@@ -626,20 +626,29 @@ return GuardianConfig
         <Properties>
           <string name="Name">HatchConfig</string>
           <string name="Source"><![CDATA[local Config = {}
+local RunService = game:GetService("RunService")
 
 Config.Timers = { Common = 3, Uncommon = 5, Rare = 8, Epic = 15, Legendary = 30, Mythic = 60 }
+-- Studio-only smoke test: the first roll in a play session is Floragon.
+-- This is ignored outside Studio and automatically disables itself after one roll.
+Config.TestFirstMonster = "floragon"
+local firstStudioRollAvailable = true
 Config.Monsters = require(script.Parent:WaitForChild("MonsterConfig")).Definitions
 Config.Pools = {
-	hatchling_egg = {{"green_slime", 70}, {"leaf_bunny", 20}, {"baby_goblin", 8}, {"forest_dragon", 2}},
-	forest_egg = {{"leaf_bunny", 60}, {"baby_goblin", 30}, {"forest_dragon", 10}},
+	hatchling_egg = {{"green_slime", 70}, {"leaf_bunny", 20}, {"baby_goblin", 8}, {"forest_dragon", 2}, {"floragon", 2}},
+	forest_egg = {{"leaf_bunny", 60}, {"baby_goblin", 30}, {"forest_dragon", 10}, {"floragon", 10}},
 	slime_egg = {{"green_slime", 100}},
 	magma_egg = {{"magma_slime", 75}, {"flame_goblin", 25}},
 	inferno_egg = {{"flame_goblin", 80}, {"inferno_dragon", 20}},
 	dragon_egg = {{"inferno_dragon", 100}},
-	basic_egg = {{"green_slime", 70}, {"leaf_bunny", 20}, {"baby_goblin", 8}, {"forest_dragon", 2}},
+	basic_egg = {{"green_slime", 70}, {"leaf_bunny", 20}, {"baby_goblin", 8}, {"forest_dragon", 2}, {"floragon", 2}},
 }
 
 function Config.Roll(eggType, random)
+	if RunService:IsStudio() and firstStudioRollAvailable and Config.TestFirstMonster then
+		firstStudioRollAvailable = false
+		return Config.TestFirstMonster
+	end
 	local pool = Config.Pools[eggType]
 	if not pool or #pool == 0 then return nil end
 	local total = 0
@@ -774,27 +783,27 @@ Profiles.Desert = {
 }
 
 Profiles.Volcano = {
-	Brightness = 1.3,
+	Brightness = 1.55,
 	ClockTime = 18,
-	ExposureCompensation = -0.25,
+	ExposureCompensation = -0.12,
 
-	Ambient = Color3.fromRGB(90, 55, 45),
-	OutdoorAmbient = Color3.fromRGB(110, 65, 50),
+	Ambient = Color3.fromRGB(105, 65, 52),
+	OutdoorAmbient = Color3.fromRGB(125, 78, 60),
 
 	Atmosphere = {
-		Density = 0.48,
+		Density = 0.44,
 		Offset = 0,
-		Color = Color3.fromRGB(115, 80, 65),
-		Decay = Color3.fromRGB(55, 25, 20),
+		Color = Color3.fromRGB(125, 88, 70),
+		Decay = Color3.fromRGB(60, 30, 23),
 		Glare = 0.3,
-		Haze = 3,
+		Haze = 2.6,
 	},
 
 	ColorCorrection = {
-		Brightness = -0.08,
-		Contrast = 0.2,
-		Saturation = -0.05,
-		TintColor = Color3.fromRGB(255, 155, 120),
+		Brightness = -0.04,
+		Contrast = 0.18,
+		Saturation = -0.02,
+		TintColor = Color3.fromRGB(255, 165, 125),
 	},
 }
 
@@ -822,6 +831,10 @@ Config.Definitions = {
 	leaf_bunny = definition("Leaf Bunny", "HatchlingFields", "Uncommon", 4, "LeafBunny", "leaf_bunny", Color3.fromRGB(170, 225, 100)),
 	baby_goblin = definition("Baby Goblin", "HatchlingFields", "Rare", 8, "BabyGoblin", "baby_goblin", Color3.fromRGB(90, 150, 65)),
 	forest_dragon = definition("Forest Dragon", "HatchlingFields", "Legendary", 20, "ForestDragon", "forest_dragon", Color3.fromRGB(35, 125, 75)),
+	-- First production monster model. Put the rig at ServerStorage.MonsterModels.Floragon.
+	-- Its walk animation is read from an Animation named "WalkAnimation" inside the model,
+	-- or from the model's WalkAnimationId attribute.
+	floragon = definition("Floragon", "HatchlingFields", "Legendary", 20, "Floragon", "floragon", Color3.fromRGB(74, 176, 91)),
 	magma_slime = definition("Magma Slime", "Volcano", "Rare", 12, "MagmaSlime", "magma_slime", Color3.fromRGB(255, 115, 35)),
 	flame_goblin = definition("Flame Goblin", "Volcano", "Epic", 25, "FlameGoblin", "flame_goblin", Color3.fromRGB(210, 65, 40)),
 	inferno_dragon = definition("Inferno Dragon", "Volcano", "Legendary", 60, "InfernoDragon", "inferno_dragon", Color3.fromRGB(150, 35, 35)),
@@ -842,6 +855,88 @@ return Config
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="10">
+        <Properties>
+          <string name="Name">MonsterWanderConfig</string>
+          <string name="Source"><![CDATA[return {
+	MinWalkDistance = 2.5,
+	MaxWalkDistance = 7,
+	MinWalkSpeed = 2.2,
+	MaxWalkSpeed = 3.5,
+	MinPause = 1.5,
+	MaxPause = 4.5,
+	EdgeMargin = 0.5,
+	NeighborGap = 0.75,
+	DestinationAttempts = 12,
+	ScanInterval = 0.5,
+}
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">PlotUpgradeConfig</string>
+          <string name="Source"><![CDATA[local Config = {}
+
+Config.Levels = {
+	{ Capacity = 6, Cost = 0 },
+	{ Capacity = 8, Cost = 5000 },
+	{ Capacity = 12, Cost = 50000 },
+	{ Capacity = 16, Cost = 500000 },
+}
+
+function Config.GetLevel(capacity)
+	for level, definition in ipairs(Config.Levels) do
+		if definition.Capacity == capacity then return level, definition end
+	end
+	return nil
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
+          <string name="Name">PolishConfig</string>
+          <string name="Source"><![CDATA[--!strict
+
+-- Faza 20: jedan izvor istine za UI/VFX boje i zvukove.
+-- ChaseMusicId namerno ostaje konfigurabilan jer audio asset mora da bude
+-- u vlasnistvu grupe/iskustva da bi pouzdano radio u objavljenoj igri.
+
+local Config = {}
+
+Config.RarityColors = {
+	Common = Color3.fromRGB(205, 215, 225),
+	Uncommon = Color3.fromRGB(91, 224, 104),
+	Rare = Color3.fromRGB(74, 151, 255),
+	Epic = Color3.fromRGB(187, 86, 255),
+	Legendary = Color3.fromRGB(255, 181, 45),
+	Mythic = Color3.fromRGB(255, 64, 120),
+}
+
+Config.RarityBurstCount = {
+	Common = 18,
+	Uncommon = 24,
+	Rare = 32,
+	Epic = 42,
+	Legendary = 56,
+	Mythic = 72,
+}
+
+Config.Sounds = {
+	Pickup = "rbxasset://sounds/swoosh.wav",
+	Deposit = "rbxasset://sounds/button.wav",
+	Hatch = "rbxasset://sounds/electronicpingshort.wav",
+	-- Postavi na rbxassetid://ID audio fajla koji pripada iskustvu/grupi.
+	ChaseMusicId = "",
+}
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="13">
         <Properties>
           <string name="Name">RarityConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -927,7 +1022,7 @@ return RarityConfig
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="11">
+      <Item class="ModuleScript" referent="14">
         <Properties>
           <string name="Name">SizeConfig</string>
           <string name="Source"><![CDATA[--!strict
@@ -1000,7 +1095,7 @@ return SizeConfig
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="12">
+      <Item class="ModuleScript" referent="15">
         <Properties>
           <string name="Name">TreadmillConfig</string>
           <string name="Source"><![CDATA[local Config = {}
@@ -1016,16 +1111,16 @@ return Config
         </Properties>
       </Item>
     </Item>
-    <Item class="RemoteEvent" referent="13">
+    <Item class="RemoteEvent" referent="16">
       <Properties>
         <string name="Name">PlaceEggEvent</string>
       </Properties>
     </Item>
-    <Item class="Folder" referent="14">
+    <Item class="Folder" referent="17">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
-      <Item class="ModuleScript" referent="15">
+      <Item class="ModuleScript" referent="18">
         <Properties>
           <string name="Name">Hello</string>
           <string name="Source"><![CDATA[return function()
@@ -1036,15 +1131,15 @@ end
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="16">
+  <Item class="ServerScriptService" referent="19">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="17">
+    <Item class="Folder" referent="20">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="18">
+      <Item class="ModuleScript" referent="21">
         <Properties>
           <string name="Name">BiomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -1209,7 +1304,7 @@ return BiomeService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="19">
+      <Item class="Script" referent="22">
         <Properties>
           <string name="Name">BiomeSystem</string>
           <token name="RunContext">0</token>
@@ -1218,7 +1313,7 @@ BiomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="20">
+      <Item class="ModuleScript" referent="23">
         <Properties>
           <string name="Name">EggInventoryService</string>
           <string name="Source"><![CDATA[-- Server-owned inventory records; Tools are replaceable views of those records.
@@ -1229,6 +1324,19 @@ local EggConfig = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild
 local Service = {}
 local states = {}
 local fields = { "UID", "EggType", "EggName", "Biome", "Rarity", "Size", "Scale" }
+
+local function validMetadata(data)
+	if type(data) ~= "table" then return false end
+	for _, field in ipairs(fields) do
+		local value = data[field]
+		if field == "Scale" then
+			if type(value) ~= "number" or value ~= value or value <= 0 or value == math.huge then return false end
+		elseif type(value) ~= "string" or value == "" or #value > 128 then
+			return false
+		end
+	end
+	return EggConfig.EggTypes[data.EggType] ~= nil or data.EggType == EggConfig.LegacyBasicEgg.EggType
+end
 
 local function makeTool(player, egg)
 	-- Never clone the live carried assembly: its joints can reference the character
@@ -1365,7 +1473,9 @@ function Service.Deposit(player, egg, inventory)
 		local value = egg:GetAttribute(field)
 		if field == "Scale" then
 			if type(value) ~= "number" or value ~= value or value <= 0 or value == math.huge then return false end
-		elseif type(value) ~= "string" or value == "" then return false end
+		elseif type(value) ~= "string" or value == "" then
+			return false
+		end
 	end
 	local uid = egg:GetAttribute("UID")
 	local state = Service.StartPlayer(player, inventory)
@@ -1385,6 +1495,70 @@ function Service.Deposit(player, egg, inventory)
 	record.Parent = inventory
 	live.Parent = backpack
 	return true
+end
+
+function Service.Restore(player, inventory, records)
+	local state = Service.StartPlayer(player, inventory)
+	if type(records) ~= "table" then return end
+	for index, data in ipairs(records) do
+		if index > 100 then break end
+		if validMetadata(data) and not state.entries[data.UID] then
+			local record = Instance.new("Folder")
+			record.Name = data.UID
+			for _, field in ipairs(fields) do record:SetAttribute(field, data[field]) end
+			record:SetAttribute("OwnerUserId", player.UserId)
+			local ok, template = pcall(makeTool, player, record)
+			if ok then
+				state.entries[data.UID] = { record = record, template = template }
+				record.Parent = inventory
+			else
+				record:Destroy()
+				warn("[EggInventoryService] Restore skipped: " .. tostring(template))
+			end
+		end
+	end
+	reconcile(player, state)
+end
+
+function Service.Snapshot(player)
+	local state = states[player]
+	local result = {}
+	if not state then return result end
+	for _, entry in pairs(state.entries) do
+		if entry.record.Parent == state.inventory then
+			local data = {}
+			for _, field in ipairs(fields) do data[field] = entry.record:GetAttribute(field) end
+			table.insert(result, data)
+		end
+	end
+	table.sort(result, function(a, b) return a.UID < b.UID end)
+	return result
+end
+
+function Service.CreatePlacedVisual(player, data)
+	if not validMetadata(data) then return nil end
+	local record = Instance.new("Folder")
+	for _, field in ipairs(fields) do record:SetAttribute(field, data[field]) end
+	record:SetAttribute("OwnerUserId", player.UserId)
+	local ok, tool = pcall(makeTool, player, record)
+	record:Destroy()
+	if not ok then return nil end
+	local source = tool:FindFirstChild("EggVisual")
+	local visual = source and source:Clone()
+	tool:Destroy()
+	if not visual then return nil end
+	for _, object in ipairs(visual:GetDescendants()) do
+		if object:IsA("JointInstance") or object:IsA("Constraint") then object:Destroy()
+		elseif object:IsA("BasePart") then
+			object.Anchored = true
+			object.CanCollide, object.CanTouch, object.CanQuery = false, false, true
+		end
+	end
+	for _, field in ipairs(fields) do visual:SetAttribute(field, data[field]) end
+	visual:SetAttribute("OwnerUserId", player.UserId)
+	visual:SetAttribute("Placed", true)
+	visual.Name = data.UID
+	return visual
 end
 
 function Service.GetEquippedEntry(player, uid)
@@ -1409,19 +1583,23 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	local state = states[player]
 	if not state then return end
-	states[player] = nil
-	for _, connection in ipairs(state.connections) do connection:Disconnect() end
-	for _, entry in pairs(state.entries) do
-		entry.template:Destroy()
-		if entry.live then entry.live:Destroy() end
-	end
+	-- Persistence snapshots PlayerRemoving synchronously; clean runtime objects after it finishes.
+	task.defer(function()
+		if states[player] ~= state then return end
+		states[player] = nil
+		for _, connection in ipairs(state.connections) do connection:Disconnect() end
+		for _, entry in pairs(state.entries) do
+			entry.template:Destroy()
+			if entry.live then entry.live:Destroy() end
+		end
+	end)
 end)
 
 return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="21">
+      <Item class="Script" referent="24">
         <Properties>
           <string name="Name">EggPlacementSystem</string>
           <token name="RunContext">0</token>
@@ -1445,6 +1623,7 @@ assert(remote:IsA("RemoteEvent"), "[EggPlacement] ReplicatedStorage.PlaceEggEven
 local lastRequest = {}
 
 remote.OnServerEvent:Connect(function(player, uid, point)
+	if player:GetAttribute("PlayerDataStatus") == "Loading" then return end
 	local now = os.clock()
 	if now - (lastRequest[player] or -math.huge) < 0.15 then return end
 	lastRequest[player] = now
@@ -1492,7 +1671,7 @@ remote:SetAttribute("ServerReady", true)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="22">
+      <Item class="Script" referent="25">
         <Properties>
           <string name="Name">EggSystem</string>
           <token name="RunContext">0</token>
@@ -2253,7 +2432,8 @@ local function dropEgg(player)
 
 		runUIEvent:FireClient(
 			player,
-			false
+			false,
+			"Dropped"
 		)
 
 		return
@@ -2268,7 +2448,8 @@ local function dropEgg(player)
 
 		runUIEvent:FireClient(
 			player,
-			false
+			false,
+			"Dropped"
 		)
 
 		return
@@ -2309,7 +2490,8 @@ local function dropEgg(player)
 
 	runUIEvent:FireClient(
 		player,
-		false
+		false,
+		"Dropped"
 	)
 
 	setEggPhysicsForDrop(egg)
@@ -2774,7 +2956,8 @@ local function depositEgg(player)
 
 	runUIEvent:FireClient(
 		player,
-		false
+		false,
+		"Deposited"
 	)
 
 	eggOriginSpawn[egg] = nil
@@ -2963,10 +3146,39 @@ end
 print(
 	"[EggSystem] Phase 4 egg system loaded."
 )
+
+--------------------------------------------------
+-- PERSISTENCE BOOTSTRAP
+--------------------------------------------------
+-- Some existing Studio places can retain a disabled/missing PlayerDataSystem
+-- Script even while Rojo updates the ModuleScripts. EggSystem is known to run in
+-- those places, so it also starts the idempotent persistence service.
+
+local playerDataOk, playerDataError = pcall(function()
+	local playerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+	playerDataService.Start()
+end)
+
+if playerDataOk then
+	print("[EggSystem] PlayerDataService bootstrap complete.")
+else
+	warn("[EggSystem] PlayerDataService bootstrap failed: " .. tostring(playerDataError))
+end
+
+local plotUpgradeOk, plotUpgradeError = pcall(function()
+	local plotUpgradeService = require(script.Parent:WaitForChild("PlotUpgradeService"))
+	plotUpgradeService.Start()
+end)
+
+if plotUpgradeOk then
+	print("[EggSystem] PlotUpgradeService bootstrap complete.")
+else
+	warn("[EggSystem] PlotUpgradeService bootstrap failed: " .. tostring(plotUpgradeError))
+end
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="23">
+      <Item class="ModuleScript" referent="26">
         <Properties>
           <string name="Name">GuardianHitService</string>
           <string name="Source"><![CDATA[-- Server-only temporary ragdoll. Original joints and movement settings are restored.
@@ -3165,7 +3377,7 @@ return HitService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="24">
+      <Item class="Script" referent="27">
         <Properties>
           <string name="Name">GuardianService</string>
           <token name="RunContext">0</token>
@@ -3187,8 +3399,19 @@ if not activeFolder then
 	activeFolder.Parent = workspace
 end
 
-local signals = ServerScriptService:WaitForChild("GameSignals")
-local forceDropEvent = signals:WaitForChild("GuardianForceDrop")
+local signals = ServerScriptService:FindFirstChild("GameSignals")
+if not signals then
+	signals = Instance.new("Folder")
+	signals.Name = "GameSignals"
+	signals.Parent = ServerScriptService
+end
+assert(signals:IsA("Folder"), "ServerScriptService.GameSignals must be a Folder")
+local forceDropEvent = signals:FindFirstChild("GuardianForceDrop")
+if not forceDropEvent then
+	forceDropEvent = Instance.new("BindableEvent")
+	forceDropEvent.Name = "GuardianForceDrop"
+	forceDropEvent.Parent = signals
+end
 assert(forceDropEvent:IsA("BindableEvent"), "GameSignals.GuardianForceDrop must be a BindableEvent")
 
 type Chase = { egg: Model, player: Player, guardian: Model, connection: RBXScriptConnection? }
@@ -3435,7 +3658,7 @@ print("[GuardianService] Phase 8 guardian service loaded.")
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="25">
+      <Item class="ModuleScript" referent="28">
         <Properties>
           <string name="Name">HatchService</string>
           <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
@@ -3449,18 +3672,19 @@ local Service = {}
 local active = {}
 local random = Random.new()
 local started = false
+local polishEvent
 
 -- Prepare before consuming inventory. Failure leaves the equipped egg untouched.
-function Service.Prepare(egg)
+function Service.Prepare(egg, savedMonsterId)
 	local duration = Config.Timers[egg:GetAttribute("Rarity")]
-	local monsterId = Config.Roll(egg:GetAttribute("EggType"), random)
+	local monsterId = savedMonsterId or Config.Roll(egg:GetAttribute("EggType"), random)
 	if not duration or not monsterId then return nil end
 	local ok, monster = pcall(MonsterService.Create, egg, monsterId)
 	if not ok then warn("[HatchService] " .. tostring(monster)); return nil end
 	return { monster = monster, duration = duration }
 end
 
-function Service.Begin(egg, plot, prepared)
+function Service.Begin(egg, plot, prepared, remainingDuration)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HatchCountdown"
 	gui.Size = UDim2.fromOffset(180, 45)
@@ -3476,14 +3700,16 @@ function Service.Begin(egg, plot, prepared)
 	label.TextStrokeTransparency = 0.3
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 22
-	label.Text = "Hatching: " .. prepared.duration .. "s"
+	local duration = math.max(0, tonumber(remainingDuration) or prepared.duration)
+	label.Text = "Hatching: " .. math.ceil(duration) .. "s"
 	label.Parent = gui
 	gui.Parent = egg
-	local deadline = workspace:GetServerTimeNow() + prepared.duration
+	local deadline = workspace:GetServerTimeNow() + duration
 	egg:SetAttribute("HatchEndsAt", deadline)
 	egg:SetAttribute("HatchState", "Incubating")
 	prepared.plot, prepared.deadline, prepared.label = plot, deadline, label
 	prepared.owner = egg:GetAttribute("OwnerUserId")
+	egg:SetAttribute("PendingMonsterId", prepared.monster:GetAttribute("MonsterId"))
 	active[egg] = prepared
 end
 
@@ -3491,6 +3717,13 @@ function Service.Start()
 	if started then return end
 	started = true
 	IndexService.Start()
+	polishEvent = ReplicatedStorage:FindFirstChild("PolishEvent")
+	if not polishEvent then
+		polishEvent = Instance.new("RemoteEvent")
+		polishEvent.Name = "PolishEvent"
+		polishEvent.Parent = ReplicatedStorage
+	end
+	assert(polishEvent:IsA("RemoteEvent"), "PolishEvent must be a RemoteEvent")
 	local elapsed = 0
 	RunService.Heartbeat:Connect(function(dt)
 		elapsed += dt
@@ -3520,6 +3753,12 @@ function Service.Start()
 				-- Keep one occupied entry in PlacedEggs; monsters count toward the same six-place limit.
 				active[egg] = nil
 				entry.monster.Parent = egg.Parent
+				polishEvent:FireAllClients(
+					"Hatch",
+					entry.monster,
+					entry.monster:GetAttribute("Rarity"),
+					entry.owner
+				)
 				egg:Destroy()
 				local owner = Players:GetPlayerByUserId(entry.owner)
 				if owner then IndexService.RecordHatch(owner, entry.monster) end
@@ -3538,7 +3777,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="26">
+      <Item class="ModuleScript" referent="29">
         <Properties>
           <string name="Name">IncomeService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -3554,6 +3793,7 @@ end
 
 local function payTick()
 	for _, player in ipairs(Players:GetPlayers()) do
+		if player:GetAttribute("PlayerDataStatus") == "Loading" then continue end
 		local income = MonsterService.GetIncome(player)
 		if not finite(income) or income < 0 then income = 0 end
 		player:SetAttribute("CashPerSecond", income)
@@ -3587,7 +3827,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="27">
+      <Item class="Script" referent="30">
         <Properties>
           <string name="Name">IncomeSystem</string>
           <token name="RunContext">0</token>
@@ -3596,19 +3836,17 @@ IncomeService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="28">
+      <Item class="ModuleScript" referent="31">
         <Properties>
           <string name="Name">IndexService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataStoreService = game:GetService("DataStoreService")
 local Config = require(ReplicatedStorage.Modules:WaitForChild("MonsterConfig"))
 local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
 local Service = {}
 local ranks = { Tiny = 1, Normal = 2, Large = 3, Huge = 4, Titanic = 5 }
 local states = {}
 local started = false
-local store
 local validIds = {}
 for _, definition in pairs(Config.Definitions) do validIds[definition.IndexId] = true end
 
@@ -3635,66 +3873,9 @@ local function beginPlayer(player)
 	local folder = Instance.new("Folder")
 	folder.Name = "IndexUnlocks"
 	folder.Parent = player
-	local state = { entries = {}, folder = folder, loaded = false, loading = true, revision = 0, savedRevision = 0 }
+	local state = { entries = {}, folder = folder }
 	states[player] = state
-	player:SetAttribute("IndexDataStatus", "Loading")
-	task.spawn(function()
-		local ok, data
-		for attempt = 1, 3 do
-			ok, data = pcall(function() return store:GetAsync("u_" .. player.UserId) end)
-			if ok then break end
-			if attempt < 3 then task.wait(attempt * 2) end
-		end
-		if states[player] ~= state then return end
-		state.loading = false
-		if not ok or (data ~= nil and (type(data) ~= "table" or data.Version ~= 1 or type(data.Unlocks) ~= "table")) then
-			player:SetAttribute("IndexDataStatus", "LoadFailed")
-			warn("[IndexService] Load failed; saving disabled for " .. player.Name .. ": " .. tostring(data))
-			return
-		end
-		if data then merge(state.entries, data.Unlocks) end
-		state.loaded = true
-		publish(player, state)
-		player:SetAttribute("IndexDataStatus", "Ready")
-	end)
 	return state
-end
-
-local function save(player, state)
-	if not state.loaded or state.saving or state.revision == state.savedRevision then return end
-	state.saving = true
-	local revision = state.revision
-	local snapshot = table.clone(state.entries)
-	local ok, result
-	for attempt = 1, 3 do
-		ok, result = pcall(function()
-			return store:UpdateAsync("u_" .. player.UserId, function(old)
-				if old ~= nil and (type(old) ~= "table" or old.Version ~= 1 or type(old.Unlocks) ~= "table") then
-					error("Unsupported Index data; refusing overwrite")
-				end
-				local entries = if old then table.clone(old.Unlocks) else {}
-				-- Unlocks only grow; concurrent sessions cannot downgrade Best Size.
-				for id, size in pairs(snapshot) do
-					if not ranks[entries[id]] or ranks[size] > ranks[entries[id]] then entries[id] = size end
-				end
-				return { Version = 1, Unlocks = entries }
-			end)
-		end)
-		if ok then break end
-		if attempt < 3 then task.wait(attempt * 2) end
-	end
-	state.saving = false
-	if ok then
-		state.savedRevision = revision
-		if states[player] == state then
-			merge(state.entries, result.Unlocks)
-			publish(player, state)
-			player:SetAttribute("IndexDataStatus", "Ready")
-		end
-	else
-		if player.Parent == Players then player:SetAttribute("IndexDataStatus", "SaveFailed") end
-		warn("[IndexService] Save failed for " .. player.Name .. ": " .. tostring(result))
-	end
 end
 
 function Service.RecordHatch(player, monster)
@@ -3707,22 +3888,23 @@ function Service.RecordHatch(player, monster)
 	local id = definition.IndexId
 	if state.entries[id] and ranks[state.entries[id]] >= ranks[size] then return end
 	state.entries[id] = size
-	state.revision += 1
 	publish(player, state)
 end
 
-local function flush(player, state)
-	local deadline = os.clock() + 24
-	while (state.saving or state.loading) and os.clock() < deadline do task.wait(0.1) end
-	save(player, state)
+function Service.Import(player, entries)
+	local state = states[player] or beginPlayer(player)
+	if type(entries) == "table" then merge(state.entries, entries) end
+	publish(player, state)
+end
+
+function Service.Export(player)
+	local state = states[player] or beginPlayer(player)
+	return table.clone(state.entries)
 end
 
 function Service.Start()
 	if started then return end
 	started = true
-	-- Failure to access DataStore does not prevent session-only unlocks.
-	local ok, result = pcall(function() return DataStoreService:GetDataStore("MonsterEggIndex_v1") end)
-	if ok then store = result end
 	local previews = Instance.new("Folder")
 	previews.Name = "IndexPreviews"
 	for id, definition in pairs(Config.Definitions) do
@@ -3737,34 +3919,16 @@ function Service.Start()
 	previews.Parent = ReplicatedStorage
 	Players.PlayerAdded:Connect(beginPlayer)
 	Players.PlayerRemoving:Connect(function(player)
-		local state = states[player]
-		if not state then return end
-		flush(player, state)
-		states[player] = nil
+		task.defer(function() states[player] = nil end)
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do beginPlayer(player) end
-	task.spawn(function()
-		while true do
-			task.wait(60)
-			for player, state in pairs(states) do task.spawn(save, player, state) end
-		end
-	end)
-	game:BindToClose(function()
-		local pending = 0
-		for player, state in pairs(states) do
-			pending += 1
-			task.spawn(function() flush(player, state); pending -= 1 end)
-		end
-		local deadline = os.clock() + 25
-		while pending > 0 and os.clock() < deadline do task.wait(0.1) end
-	end)
 end
 
 return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="29">
+      <Item class="Script" referent="32">
         <Properties>
           <string name="Name">IndexSystem</string>
           <token name="RunContext">0</token>
@@ -3773,10 +3937,10 @@ IndexService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="30">
+      <Item class="ModuleScript" referent="33">
         <Properties>
           <string name="Name">MonsterService</string>
-          <string name="Source">local ServerStorage = game:GetService("ServerStorage")
+          <string name="Source"><![CDATA[local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local Config = require(ReplicatedStorage.Modules:WaitForChild("MonsterConfig"))
@@ -3814,24 +3978,54 @@ end
 
 function Service.Create(egg, monsterId)
 	local definition = Config.Definitions[monsterId]
+	if not definition then error("Unknown monster id: " .. tostring(monsterId)) end
 	local folder = ServerStorage:FindFirstChild("MonsterModels")
 	local source = folder and folder:FindFirstChild(definition.ModelName)
-	local model = source and source:IsA("Model") and source:Clone() or placeholder(definition)
+	local usesCustomModel = source ~= nil and source:IsA("Model")
+	local model = usesCustomModel and source:Clone() or placeholder(definition)
 	for _, item in ipairs(model:GetDescendants()) do
-		if item:IsA("LuaSourceContainer") or item:IsA("JointInstance") or item:IsA("Constraint")
-			or item:IsA("BodyMover") or item:IsA("ProximityPrompt") then item:Destroy() end
+		-- Model templates are data-only, but rig joints/constraints must survive so
+		-- Motor6D/Bone animations can move the monster after it hatches.
+		if item:IsA("LuaSourceContainer") or item:IsA("BodyMover") or item:IsA("ProximityPrompt")
+			or item:IsA("AlignPosition") or item:IsA("AlignOrientation")
+			or item:IsA("LinearVelocity") or item:IsA("AngularVelocity")
+			or item:IsA("VectorForce") then item:Destroy() end
 	end
 	local firstPart
 	for _, item in ipairs(model:GetDescendants()) do
 		if item:IsA("BasePart") then
 			firstPart = firstPart or item
-			item.Anchored = true
 			item.CanCollide, item.CanTouch, item.CanQuery = false, false, true
 			item.AssemblyLinearVelocity, item.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
 		end
 	end
 	if not firstPart then model:Destroy(); error("Monster model has no BasePart: " .. definition.ModelName) end
 	model.PrimaryPart = model.PrimaryPart or firstPart
+	local isRigged = model:FindFirstChildWhichIsA("Motor6D", true) ~= nil
+		or model:FindFirstChildWhichIsA("Bone", true) ~= nil
+	if usesCustomModel and isRigged then
+		-- Create the Animator on the server so every client receives the same valid
+		-- animation host. The visual client script only controls its local track.
+		local animationHost = model:FindFirstChildWhichIsA("Humanoid", true)
+			or model:FindFirstChildWhichIsA("AnimationController", true)
+		if not animationHost then
+			animationHost = Instance.new("AnimationController")
+			animationHost.Name = "MonsterAnimationController"
+			animationHost.Parent = model
+		end
+		if not animationHost:FindFirstChildWhichIsA("Animator") then
+			local animator = Instance.new("Animator")
+			animator.Parent = animationHost
+		end
+	end
+	for _, item in ipairs(model:GetDescendants()) do
+		if item:IsA("BasePart") then
+			-- A rig needs one anchored root and movable limbs. Static/fallback models
+			-- stay fully anchored because their loose decorative parts have no joints.
+			item.Anchored = if usesCustomModel and isRigged then item == model.PrimaryPart else true
+			item.Massless = item ~= model.PrimaryPart
+		end
+	end
 	model:ScaleTo(egg:GetAttribute("Scale"))
 	model:PivotTo(CFrame.new())
 	-- Inherit the egg's size multiplier exactly; never shrink to its footprint.
@@ -3877,10 +4071,612 @@ function Service.GetIncome(player)
 	return total
 end
 
-return Service</string>
+function Service.AddLabel(monster)
+	if not monster or not monster:IsA("Model") or not monster.PrimaryPart then return end
+	local old = monster:FindFirstChild("MonsterLabel")
+	if old then old:Destroy() end
+	local frame, size = monster:GetBoundingBox()
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "MonsterLabel"
+	gui.Size = UDim2.fromOffset(230, 75)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 120
+	gui.Adornee = monster.PrimaryPart
+	gui.StudsOffsetWorldSpace = frame.Position - monster.PrimaryPart.Position + Vector3.new(0, size.Y / 2 + 1.5, 0)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.3
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 22
+	label.Text = string.format("%s\n%s | %s\n$%g/sec", monster:GetAttribute("MonsterName"),
+		monster:GetAttribute("Rarity"), monster:GetAttribute("Size"), monster:GetAttribute("FinalIncome"))
+	label.Parent = gui
+	gui.Parent = monster
+end
+
+return Service
+]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="31">
+      <Item class="ModuleScript" referent="34">
+        <Properties>
+          <string name="Name">MonsterWanderService</string>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Modules:WaitForChild("MonsterWanderConfig"))
+local PlotService = require(script.Parent:WaitForChild("PlotService"))
+
+local Service = {}
+local random = Random.new()
+local states = {}
+local started = false
+
+local function randomRange(minimum, maximum)
+	return minimum + (maximum - minimum) * random:NextNumber()
+end
+
+local function isActiveMonster(monster, plot)
+	return monster:IsA("Model")
+		and monster.PrimaryPart ~= nil
+		and monster:GetAttribute("IsMonster") == true
+		and monster:GetAttribute("OwnerUserId") == plot:GetAttribute("OwnerUserId")
+		and monster.Parent == plot:FindFirstChild("PlacedEggs")
+end
+
+local function removeState(monster)
+	states[monster] = nil
+	if monster.Parent then monster:SetAttribute("WanderState", nil) end
+end
+
+local function createState(monster, plot)
+	local boundingFrame = monster:GetBoundingBox()
+	local state = {
+		plot = plot,
+		pivotOffset = boundingFrame:ToObjectSpace(monster:GetPivot()),
+		mode = "Paused",
+		nextAction = os.clock() + randomRange(Config.MinPause, Config.MaxPause),
+	}
+	states[monster] = state
+	monster:SetAttribute("WanderState", "Paused")
+	return state
+end
+
+local function destinationIsFree(monster, plot, localTarget, radius)
+	local folder = plot:FindFirstChild("PlacedEggs")
+	local place = plot:FindFirstChild("Place")
+	if not folder or not place then return false end
+	for _, other in ipairs(folder:GetChildren()) do
+		if other ~= monster and other:IsA("Model") and other.PrimaryPart then
+			local otherFrame, otherSize = other:GetBoundingBox()
+			local otherLocal = place.CFrame:PointToObjectSpace(otherFrame.Position)
+			local otherRadius = math.max(otherSize.X, otherSize.Z) / 2
+			local delta = Vector2.new(localTarget.X - otherLocal.X, localTarget.Z - otherLocal.Z)
+			if delta.Magnitude < radius + otherRadius + Config.NeighborGap then return false end
+		end
+	end
+	return true
+end
+
+local function chooseWalk(monster, state, now)
+	local plot = state.plot
+	local place = plot:FindFirstChild("Place")
+	if not place or not place:IsA("BasePart") then return false end
+	local currentFrame, size = monster:GetBoundingBox()
+	local currentLocal = place.CFrame:PointToObjectSpace(currentFrame.Position)
+	local radius = math.max(size.X, size.Z) / 2
+	local limitX = place.Size.X / 2 - radius - Config.EdgeMargin
+	local limitZ = place.Size.Z / 2 - radius - Config.EdgeMargin
+	if limitX <= 0 or limitZ <= 0 then return false end
+
+	for _ = 1, Config.DestinationAttempts do
+		local angle = randomRange(0, math.pi * 2)
+		local distance = randomRange(Config.MinWalkDistance, Config.MaxWalkDistance)
+		local targetLocal = Vector3.new(
+			math.clamp(currentLocal.X + math.cos(angle) * distance, -limitX, limitX),
+			place.Size.Y / 2 + size.Y / 2,
+			math.clamp(currentLocal.Z + math.sin(angle) * distance, -limitZ, limitZ)
+		)
+		local planarDistance = Vector2.new(targetLocal.X - currentLocal.X, targetLocal.Z - currentLocal.Z).Magnitude
+		if planarDistance >= Config.MinWalkDistance * 0.6 and destinationIsFree(monster, plot, targetLocal, radius) then
+			local startPosition = place.CFrame:PointToWorldSpace(Vector3.new(
+				currentLocal.X,
+				place.Size.Y / 2 + size.Y / 2,
+				currentLocal.Z
+			))
+			local targetPosition = place.CFrame:PointToWorldSpace(targetLocal)
+			local facing = CFrame.lookAt(targetPosition, targetPosition + (targetPosition - startPosition), place.CFrame.UpVector)
+			state.from = currentFrame
+			state.to = facing
+			state.startedAt = now
+			state.duration = planarDistance / randomRange(Config.MinWalkSpeed, Config.MaxWalkSpeed)
+			state.mode = "Walking"
+			monster:SetAttribute("WanderState", "Walking")
+			return true
+		end
+	end
+	return false
+end
+
+local function updateMonster(monster, state, now)
+	local plot = state.plot
+	if not monster.Parent or not plot.Parent or not isActiveMonster(monster, plot) then
+		removeState(monster)
+		return
+	end
+	local owner = Players:GetPlayerByUserId(monster:GetAttribute("OwnerUserId"))
+	if not owner or owner:GetAttribute("PlayerDataStatus") == "Loading" then return end
+
+	if state.mode == "Walking" then
+		local alpha = math.clamp((now - state.startedAt) / state.duration, 0, 1)
+		local eased = alpha * alpha * (3 - 2 * alpha)
+		local frame = state.from:Lerp(state.to, eased)
+		monster:PivotTo(frame * state.pivotOffset)
+		if alpha >= 1 then
+			state.mode = "Paused"
+			state.nextAction = now + randomRange(Config.MinPause, Config.MaxPause)
+			monster:SetAttribute("WanderState", "Paused")
+		end
+	elseif now >= state.nextAction then
+		if not chooseWalk(monster, state, now) then
+			state.nextAction = now + randomRange(Config.MinPause, Config.MaxPause)
+		end
+	end
+end
+
+local function scan()
+	local plots = workspace:FindFirstChild("Plots")
+	if not plots then return end
+	for _, plot in ipairs(plots:GetChildren()) do
+		local folder = plot:FindFirstChild("PlacedEggs")
+		if folder then
+			for _, monster in ipairs(folder:GetChildren()) do
+				if isActiveMonster(monster, plot) and not states[monster] then createState(monster, plot) end
+			end
+		end
+	end
+end
+
+function Service.Start()
+	if started then return end
+	started = true
+	PlotService.Start()
+	local scanElapsed = Config.ScanInterval
+	RunService.Heartbeat:Connect(function(deltaTime)
+		scanElapsed += deltaTime
+		if scanElapsed >= Config.ScanInterval then
+			scanElapsed %= Config.ScanInterval
+			scan()
+		end
+		local now = os.clock()
+		for monster, state in pairs(states) do updateMonster(monster, state, now) end
+	end)
+end
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="35">
+        <Properties>
+          <string name="Name">MonsterWanderSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local MonsterWanderService = require(script.Parent:WaitForChild("MonsterWanderService"))
+MonsterWanderService.Start()
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="36">
+        <Properties>
+          <string name="Name">PlayerDataService</string>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local PlotService = require(script.Parent:WaitForChild("PlotService"))
+local TreadmillService = require(script.Parent:WaitForChild("TreadmillService"))
+local EggInventoryService = require(script.Parent:WaitForChild("EggInventoryService"))
+local HatchService = require(script.Parent:WaitForChild("HatchService"))
+local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
+local IndexService = require(script.Parent:WaitForChild("IndexService"))
+local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
+local MonsterConfig = require(ReplicatedStorage.Modules:WaitForChild("MonsterConfig"))
+local PlotUpgradeConfig = require(ReplicatedStorage.Modules:WaitForChild("PlotUpgradeConfig"))
+
+local Service = {}
+local STORE_NAME = "MonsterEggPlayerData_v1"
+local LEGACY_INDEX_STORE = "MonsterEggIndex_v1"
+local AUTOSAVE_SECONDS = 60
+local MAX_OFFLINE_SECONDS = 6 * 60 * 60
+local states = {}
+local started = false
+local store
+local legacyStore
+local savePlayer
+
+local eggFields = { "UID", "EggType", "EggName", "Biome", "Rarity", "Size", "Scale" }
+local sizeRanks = { Tiny = 1, Normal = 2, Large = 3, Huge = 4, Titanic = 5 }
+
+local function finite(value)
+	return type(value) == "number" and value == value and math.abs(value) < math.huge
+end
+
+local function encodeCFrame(cf)
+	return { cf:GetComponents() }
+end
+
+local function decodeCFrame(data)
+	if type(data) ~= "table" or #data ~= 12 then return nil end
+	for _, value in ipairs(data) do if not finite(value) then return nil end end
+	return CFrame.new(table.unpack(data))
+end
+
+local function copyEggMetadata(model)
+	local data = {}
+	for _, field in ipairs(eggFields) do data[field] = model:GetAttribute(field) end
+	return data
+end
+
+local function snapshotPlaced(player, plot)
+	local eggs, monsters = {}, {}
+	local folder = plot and plot:FindFirstChild("PlacedEggs")
+	local place = plot and plot:FindFirstChild("Place")
+	if not folder or not place then return eggs, monsters end
+	for _, model in ipairs(folder:GetChildren()) do
+		if model:IsA("Model") and model.PrimaryPart and model:GetAttribute("OwnerUserId") == player.UserId then
+			local data = copyEggMetadata(model)
+			local boundingFrame = model:GetBoundingBox()
+			data.CFrame = encodeCFrame(place.CFrame:ToObjectSpace(boundingFrame))
+			if model:GetAttribute("IsMonster") == true then
+				data.MonsterId = model:GetAttribute("MonsterId")
+				data.UID = model:GetAttribute("UID")
+				table.insert(monsters, data)
+			else
+				data.PendingMonsterId = model:GetAttribute("PendingMonsterId")
+				local deadline = model:GetAttribute("HatchEndsAt")
+				data.HatchAt = os.time() + math.max(0, (tonumber(deadline) or workspace:GetServerTimeNow()) - workspace:GetServerTimeNow())
+				table.insert(eggs, data)
+			end
+		end
+	end
+	return eggs, monsters
+end
+
+local function savedMonsterIncome(monsters)
+	local total = 0
+	local seen = {}
+	if type(monsters) ~= "table" then return total end
+	for index, monster in ipairs(monsters) do
+		if index > 100 then break end
+		local uid = monster.UID
+		if type(uid) == "string" and uid ~= "" and not seen[uid] then
+			seen[uid] = true
+			local income = MonsterConfig.CalculateIncome(monster.MonsterId, monster.Rarity, monster.Size)
+			if finite(income) and income > 0 then total += income end
+		end
+	end
+	return total
+end
+
+local function snapshot(player)
+	local stats = player:FindFirstChild("Stats")
+	local speed = stats and stats:FindFirstChild("Speed")
+	local cash = stats and stats:FindFirstChild("Cash")
+	local plot = PlotService.GetPlot(player)
+	local eggs, monsters = snapshotPlaced(player, plot)
+	return {
+		Version = 1,
+		Stats = {
+			Speed = speed and finite(speed.Value) and math.max(0, speed.Value) or 0,
+			Cash = cash and finite(cash.Value) and math.max(0, cash.Value) or 1000,
+		},
+		OwnedTreadmill = TreadmillService.GetLevel(player),
+		SlotCapacity = plot and plot:GetAttribute("SlotCapacity") or 6,
+		EggInventory = EggInventoryService.Snapshot(player),
+		PlacedEggs = eggs,
+		Monsters = monsters,
+		IndexUnlocks = IndexService.Export(player),
+		SavedAt = os.time(),
+		-- This is the timestamp paired with the saved Cash/monster snapshot. Updating it
+		-- on autosave also makes crash recovery bounded without replaying paid online time.
+		LastLogoutTime = os.time(),
+	}
+end
+
+local function validData(data)
+	return data == nil or (type(data) == "table" and data.Version == 1
+		and type(data.Stats) == "table" and type(data.EggInventory) == "table"
+		and type(data.PlacedEggs) == "table" and type(data.Monsters) == "table"
+		and type(data.IndexUnlocks) == "table")
+end
+
+local function retry(callback)
+	local ok, result
+	for attempt = 1, 3 do
+		ok, result = pcall(callback)
+		if ok then return true, result end
+		if attempt < 3 then task.wait(attempt * 2) end
+	end
+	return false, result
+end
+
+local function restorePlaced(player, plot, data)
+	local folder = plot:FindFirstChild("PlacedEggs")
+	local place = plot:FindFirstChild("Place")
+	if not folder or not place then return end
+	local seen = {}
+	for index, saved in ipairs(data.Monsters) do
+		if index > 100 then break end
+		local relative = decodeCFrame(saved.CFrame)
+		if relative and type(saved.MonsterId) == "string" and type(saved.UID) == "string" and not seen[saved.UID] then
+			seen[saved.UID] = true
+			local metadata = Instance.new("Folder")
+			for _, field in ipairs(eggFields) do metadata:SetAttribute(field, saved[field]) end
+			metadata:SetAttribute("OwnerUserId", player.UserId)
+			local ok, monster = pcall(MonsterService.Create, metadata, saved.MonsterId)
+			metadata:Destroy()
+			if ok then
+				monster.Name = saved.UID
+				monster:SetAttribute("UID", saved.UID)
+				monster:SetAttribute("OwnerUserId", player.UserId)
+				monster:SetAttribute("HatchedAt", os.time())
+				Placement.Move(monster, place.CFrame * relative)
+				monster.Parent = folder
+				MonsterService.AddLabel(monster)
+			else warn("[PlayerDataService] Monster restore skipped: " .. tostring(monster)) end
+		end
+	end
+	for index, saved in ipairs(data.PlacedEggs) do
+		if index > 100 then break end
+		local relative = decodeCFrame(saved.CFrame)
+		if relative and type(saved.UID) == "string" and not seen[saved.UID] then
+			seen[saved.UID] = true
+			local egg = EggInventoryService.CreatePlacedVisual(player, saved)
+			if egg then
+				Placement.Move(egg, place.CFrame * relative)
+				local prepared = HatchService.Prepare(egg, saved.PendingMonsterId)
+				if prepared then
+					egg.Parent = folder
+					HatchService.Begin(egg, plot, prepared, math.max(0, (tonumber(saved.HatchAt) or os.time()) - os.time()))
+				else egg:Destroy() end
+			end
+		end
+	end
+end
+
+local function apply(player, data)
+	local stats = player:WaitForChild("Stats", 15)
+	local inventory = player:WaitForChild("EggInventory", 15)
+	local deadline = os.clock() + 15
+	local plot = PlotService.GetPlot(player)
+	while not plot and player.Parent == Players and os.clock() < deadline do task.wait(0.1); plot = PlotService.GetPlot(player) end
+	if not stats or not inventory or not plot then error("Player runtime objects were not ready") end
+	local speed, cash = stats:FindFirstChild("Speed"), stats:FindFirstChild("Cash")
+	if speed and finite(data.Stats.Speed) then speed.Value = math.max(0, data.Stats.Speed) end
+	if cash and finite(data.Stats.Cash) then cash.Value = math.max(0, data.Stats.Cash) end
+	local capacity = tonumber(data.SlotCapacity)
+	if capacity and PlotUpgradeConfig.GetLevel(capacity) then plot:SetAttribute("SlotCapacity", capacity) end
+	TreadmillService.SetLevel(player, tonumber(data.OwnedTreadmill) or 1)
+	EggInventoryService.Restore(player, inventory, data.EggInventory)
+	IndexService.Import(player, data.IndexUnlocks)
+	restorePlaced(player, plot, data)
+end
+
+local function loadPlayer(player)
+	if states[player] then return end
+	local state = { loaded = false, saving = false, closing = false, finalized = false }
+	states[player] = state
+	player:SetAttribute("PlayerDataStatus", "Loading")
+	player:SetAttribute("IndexDataStatus", "Loading")
+	player:SetAttribute("OfflineIncomeAmount", 0)
+	player:SetAttribute("OfflineIncomeSeconds", 0)
+	local offlineIncome, offlineSeconds = 0, 0
+	local now = os.time()
+	-- Claim offline income atomically. LastLogoutTime is advanced in the same write as
+	-- Cash, so reconnects or overlapping servers cannot pay the same interval twice.
+	local ok, data = retry(function()
+		return store:UpdateAsync("u_" .. player.UserId, function(old)
+			if old == nil then return nil end
+			if not validData(old) then error("Unsupported player data; refusing offline claim") end
+			local previous = tonumber(old.LastLogoutTime) or tonumber(old.SavedAt) or now
+			local elapsed = math.clamp(math.floor(now - previous), 0, MAX_OFFLINE_SECONDS)
+			local rate = savedMonsterIncome(old.Monsters)
+			local earned = rate * elapsed
+			if not finite(earned) or earned < 0 then earned = 0 end
+			local cash = tonumber(old.Stats.Cash)
+			if not finite(cash) or cash < 0 then cash = 0 end
+			offlineIncome, offlineSeconds = earned, elapsed
+			old.Stats.Cash = cash + earned
+			old.LastLogoutTime = now
+			old.SavedAt = now
+			return old
+		end)
+	end)
+	if not ok or not validData(data) then
+		player:SetAttribute("PlayerDataStatus", "LoadFailed")
+		player:SetAttribute("IndexDataStatus", "LoadFailed")
+		warn("[PlayerDataService] Load failed; saving disabled for " .. player.Name .. ": " .. tostring(data))
+		return
+	end
+	if data == nil then
+		data = { Version = 1, Stats = { Speed = 0, Cash = 1000 }, OwnedTreadmill = 1, SlotCapacity = 6,
+			EggInventory = {}, PlacedEggs = {}, Monsters = {}, IndexUnlocks = {},
+			SavedAt = now, LastLogoutTime = now }
+		local legacyOk, legacy = retry(function() return legacyStore:GetAsync("u_" .. player.UserId) end)
+		if not legacyOk then
+			player:SetAttribute("PlayerDataStatus", "LoadFailed")
+			player:SetAttribute("IndexDataStatus", "LoadFailed")
+			warn("[PlayerDataService] Legacy Index migration read failed; saving disabled for " .. player.Name)
+			return
+		end
+		if legacy ~= nil then
+			if type(legacy) ~= "table" or legacy.Version ~= 1 or type(legacy.Unlocks) ~= "table" then
+				player:SetAttribute("PlayerDataStatus", "LoadFailed")
+				player:SetAttribute("IndexDataStatus", "LoadFailed")
+				warn("[PlayerDataService] Unsupported legacy Index data; refusing migration for " .. player.Name)
+				return
+			end
+			data.IndexUnlocks = legacy.Unlocks
+		end
+	end
+	local applied, applyError = pcall(apply, player, data)
+	if states[player] ~= state then return end
+	if not applied then
+		player:SetAttribute("PlayerDataStatus", "LoadFailed")
+		player:SetAttribute("IndexDataStatus", "LoadFailed")
+		warn("[PlayerDataService] Restore failed; saving disabled for " .. player.Name .. ": " .. tostring(applyError))
+		return
+	end
+	state.loaded = true
+	player:SetAttribute("LoadedMonsterCount", #data.Monsters)
+	player:SetAttribute("OfflineIncomeAmount", offlineIncome)
+	player:SetAttribute("OfflineIncomeSeconds", offlineSeconds)
+	player:SetAttribute("PlayerDataStatus", "Ready")
+	player:SetAttribute("IndexDataStatus", "Ready")
+	print(string.format("[PlayerDataService] Loaded %s: %d egg(s), %d monster(s)",
+		player.Name, #data.PlacedEggs, #data.Monsters))
+
+	-- Persist plot mutations shortly after placement/hatch instead of relying on the
+	-- next 60-second autosave or Studio shutdown. Hatch replaces an egg with a
+	-- monster in two child events, so a short debounce captures the settled state.
+	local plot = PlotService.GetPlot(player)
+	local folder = plot and plot:FindFirstChild("PlacedEggs")
+	if folder then
+		state.plotConnections = {}
+		local function changed()
+			if states[player] ~= state or not state.loaded or state.closing then return end
+			state.plotRevision = (state.plotRevision or 0) + 1
+			local revision = state.plotRevision
+			task.delay(1, function()
+				if states[player] ~= state or state.closing or state.plotRevision ~= revision then return end
+				while state.saving and states[player] == state and not state.closing do task.wait(0.1) end
+				if states[player] == state and not state.closing and state.plotRevision == revision then
+					savePlayer(player, state)
+				end
+			end)
+		end
+		table.insert(state.plotConnections, folder.ChildAdded:Connect(changed))
+		table.insert(state.plotConnections, folder.ChildRemoved:Connect(changed))
+		table.insert(state.plotConnections, plot:GetAttributeChangedSignal("SlotCapacity"):Connect(changed))
+	end
+end
+
+savePlayer = function(player, state, preparedSnapshot)
+	if not state or not state.loaded or state.saving
+		or (state.closing and preparedSnapshot == nil) then return end
+	state.saving = true
+	local data = preparedSnapshot or snapshot(player)
+	local ok, result = retry(function()
+		return store:UpdateAsync("u_" .. player.UserId, function(old)
+			if old ~= nil and not validData(old) then error("Unsupported player data; refusing overwrite") end
+			if old and type(old.IndexUnlocks) == "table" then
+				for id, size in pairs(old.IndexUnlocks) do
+					if sizeRanks[size] and (not sizeRanks[data.IndexUnlocks[id]] or sizeRanks[size] > sizeRanks[data.IndexUnlocks[id]]) then
+						data.IndexUnlocks[id] = size
+					end
+				end
+			end
+			return data
+		end)
+	end)
+	state.saving = false
+	if ok then
+		player:SetAttribute("SavedMonsterCount", #data.Monsters)
+		print(string.format("[PlayerDataService] Saved %s: %d inventory egg(s), %d placed egg(s), %d monster(s)",
+			player.Name, #data.EggInventory, #data.PlacedEggs, #data.Monsters))
+		if player.Parent == Players then
+			IndexService.Import(player, result.IndexUnlocks)
+			player:SetAttribute("PlayerDataStatus", "Ready")
+			player:SetAttribute("IndexDataStatus", "Ready")
+		end
+	else
+		if player.Parent == Players then player:SetAttribute("PlayerDataStatus", "SaveFailed"); player:SetAttribute("IndexDataStatus", "SaveFailed") end
+		warn("[PlayerDataService] Save failed for " .. player.Name .. ": " .. tostring(result))
+	end
+end
+
+local function finalizePlayer(player)
+	local state = states[player]
+	if not state then return end
+	-- Capture exactly once, before PlotService's deferred cleanup can empty the plot.
+	-- PlayerRemoving and BindToClose may run together in Studio; both must reuse this
+	-- snapshot instead of allowing a later empty snapshot to overwrite it.
+	state.closing = true
+	state.finalSnapshot = state.finalSnapshot or (state.loaded and snapshot(player) or nil)
+	if state.finalized then return end
+	if state.finalizing then
+		local deadline = os.clock() + 25
+		while state.finalizing and os.clock() < deadline do task.wait(0.1) end
+		return
+	end
+	state.finalizing = true
+	local deadline = os.clock() + 24
+	while state.saving and os.clock() < deadline do task.wait(0.1) end
+	if not state.finalized then
+		savePlayer(player, state, state.finalSnapshot)
+		state.finalized = true
+	end
+	state.finalizing = false
+end
+
+function Service.Start()
+	if started then return end
+	started = true
+	print("[PlayerDataService] Starting persistence service...")
+	PlotService.Start()
+	TreadmillService.Start()
+	HatchService.Start()
+	IndexService.Start()
+	store = DataStoreService:GetDataStore(STORE_NAME)
+	legacyStore = DataStoreService:GetDataStore(LEGACY_INDEX_STORE)
+	print("[PlayerDataService] Persistence service started.")
+	Players.PlayerAdded:Connect(function(player) task.spawn(loadPlayer, player) end)
+	Players.PlayerRemoving:Connect(function(player)
+		local state = states[player]
+		finalizePlayer(player)
+		if state and state.plotConnections then
+			for _, connection in ipairs(state.plotConnections) do connection:Disconnect() end
+		end
+		states[player] = nil
+	end)
+	for _, player in ipairs(Players:GetPlayers()) do task.spawn(loadPlayer, player) end
+	task.spawn(function()
+		while true do
+			task.wait(AUTOSAVE_SECONDS)
+			for player, state in pairs(states) do
+				if not state.closing then task.spawn(savePlayer, player, state) end
+			end
+		end
+	end)
+	game:BindToClose(function()
+		local pending = 0
+		for player in pairs(states) do
+			pending += 1
+			task.spawn(function() finalizePlayer(player); pending -= 1 end)
+		end
+		local deadline = os.clock() + 25
+		while pending > 0 and os.clock() < deadline do task.wait(0.1) end
+	end)
+end
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="37">
+        <Properties>
+          <string name="Name">PlayerDataSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
+PlayerDataService.Start()
+print("[PlayerDataSystem] Bootstrap script executed.")
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="38">
         <Properties>
           <string name="Name">PlayerStats</string>
           <token name="RunContext">0</token>
@@ -4039,7 +4835,7 @@ end
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="32">
+      <Item class="ModuleScript" referent="39">
         <Properties>
           <string name="Name">PlotService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4150,14 +4946,15 @@ function PlotService.Start()
 				table.remove(waiting, index)
 			end
 		end
-		local plot = assignments[player]
-		assignments[player] = nil
-		if plot then
-			resetPlot(plot, 0)
-		end
-		player:SetAttribute("PlotName", nil)
-		player:SetAttribute("PlotStatus", nil)
-		assignWaiting()
+		-- Let persistence listeners synchronously snapshot the plot before it is cleared.
+		task.defer(function()
+			local plot = assignments[player]
+			assignments[player] = nil
+			if plot then resetPlot(plot, 0) end
+			player:SetAttribute("PlotName", nil)
+			player:SetAttribute("PlotStatus", nil)
+			assignWaiting()
+		end)
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do
 		enqueue(player)
@@ -4169,7 +4966,7 @@ return PlotService
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="33">
+      <Item class="Script" referent="40">
         <Properties>
           <string name="Name">PlotSystem</string>
           <token name="RunContext">0</token>
@@ -4178,7 +4975,134 @@ PlotService.Start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="34">
+      <Item class="ModuleScript" referent="41">
+        <Properties>
+          <string name="Name">PlotUpgradeService</string>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Modules:WaitForChild("PlotUpgradeConfig"))
+local PlotService = require(script.Parent:WaitForChild("PlotService"))
+
+local Service = {}
+local started = false
+local event
+local lastRequest = {}
+local capacityConnections = {}
+
+local function finite(value)
+	return type(value) == "number" and value == value and math.abs(value) < math.huge
+end
+
+local function publish(player)
+	local plot = PlotService.GetPlot(player)
+	local capacity = plot and plot:GetAttribute("SlotCapacity") or Config.Levels[1].Capacity
+	local level = Config.GetLevel(capacity)
+	local nextDefinition = level and Config.Levels[level + 1]
+	player:SetAttribute("PlotCapacity", capacity)
+	player:SetAttribute("PlotUpgradeNextCapacity", nextDefinition and nextDefinition.Capacity or 0)
+	player:SetAttribute("PlotUpgradeCost", nextDefinition and nextDefinition.Cost or 0)
+	player:SetAttribute("PlotUpgradeMaxed", nextDefinition == nil)
+end
+
+function Service.TryUpgrade(player)
+	if player:GetAttribute("PlayerDataStatus") ~= "Ready" then
+		player:SetAttribute("PlotUpgradeStatus", "DataNotReady")
+		return false
+	end
+	local now = os.clock()
+	if now - (lastRequest[player] or -math.huge) < 0.75 then return false end
+	lastRequest[player] = now
+
+	local plot = PlotService.GetPlot(player)
+	if not plot or not PlotService.IsOwner(player, plot) then
+		player:SetAttribute("PlotUpgradeStatus", "NoPlot")
+		return false
+	end
+	local capacity = plot:GetAttribute("SlotCapacity")
+	local level = Config.GetLevel(capacity)
+	if not level then
+		warn("[PlotUpgradeService] Invalid SlotCapacity on " .. plot:GetFullName() .. ": " .. tostring(capacity))
+		player:SetAttribute("PlotUpgradeStatus", "InvalidCapacity")
+		return false
+	end
+	local nextDefinition = Config.Levels[level + 1]
+	if not nextDefinition then
+		player:SetAttribute("PlotUpgradeStatus", "MaxLevel")
+		publish(player)
+		return false
+	end
+	local stats = player:FindFirstChild("Stats")
+	local cash = stats and stats:FindFirstChild("Cash")
+	if not cash or not cash:IsA("NumberValue") or not finite(cash.Value) then
+		player:SetAttribute("PlotUpgradeStatus", "InvalidCash")
+		return false
+	end
+	if cash.Value < nextDefinition.Cost then
+		player:SetAttribute("PlotUpgradeStatus", "NotEnoughCash")
+		return false
+	end
+
+	-- No yielding between the final validation, charge, and capacity update.
+	cash.Value -= nextDefinition.Cost
+	plot:SetAttribute("SlotCapacity", nextDefinition.Capacity)
+	player:SetAttribute("PlotUpgradeStatus", "Purchased")
+	publish(player)
+	print(string.format("[PlotUpgradeService] %s upgraded plot to %d slots for $%d",
+		player.Name, nextDefinition.Capacity, nextDefinition.Cost))
+	return true
+end
+
+function Service.Start()
+	if started then return end
+	started = true
+	PlotService.Start()
+	event = ReplicatedStorage:FindFirstChild("PlotUpgradeEvent")
+	if not event then
+		event = Instance.new("RemoteEvent")
+		event.Name = "PlotUpgradeEvent"
+		event.Parent = ReplicatedStorage
+	end
+	assert(event:IsA("RemoteEvent"), "PlotUpgradeEvent must be a RemoteEvent")
+	event.OnServerEvent:Connect(function(player) Service.TryUpgrade(player) end)
+	local function added(player)
+		player:SetAttribute("PlotUpgradeStatus", "Ready")
+		task.defer(function()
+			local deadline = os.clock() + 15
+			while player.Parent == Players and not PlotService.GetPlot(player) and os.clock() < deadline do task.wait(0.1) end
+			if player.Parent ~= Players then return end
+			local plot = PlotService.GetPlot(player)
+			if not plot then return end
+			if capacityConnections[player] then capacityConnections[player]:Disconnect() end
+			capacityConnections[player] = plot:GetAttributeChangedSignal("SlotCapacity"):Connect(function()
+				if PlotService.IsOwner(player, plot) then publish(player) end
+			end)
+			publish(player)
+		end)
+	end
+	Players.PlayerAdded:Connect(added)
+	Players.PlayerRemoving:Connect(function(player)
+		lastRequest[player] = nil
+		if capacityConnections[player] then capacityConnections[player]:Disconnect(); capacityConnections[player] = nil end
+	end)
+	for _, player in ipairs(Players:GetPlayers()) do added(player) end
+	print("[PlotUpgradeService] Phase 19 service started.")
+end
+
+return Service
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="42">
+        <Properties>
+          <string name="Name">PlotUpgradeSystem</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local PlotUpgradeService = require(script.Parent:WaitForChild("PlotUpgradeService"))
+PlotUpgradeService.Start()
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="43">
         <Properties>
           <string name="Name">TreadmillService</string>
           <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -4193,6 +5117,7 @@ local locks = {}
 local blockedZones = {}
 local started = false
 local jumpEvent
+local restoredLevels = {}
 
 local function release(player, jumped)
 	local lock = locks[player]
@@ -4302,6 +5227,7 @@ local function publish(player, state)
 end
 
 function Service.TryUpgrade(player)
+	if player:GetAttribute("PlayerDataStatus") == "Loading" then return false end
 	local state = states[player]
 	if not state or not state.model or not state.prompt or not PlotService.IsOwner(player, state.plot) then return false end
 	local now = os.clock()
@@ -4344,7 +5270,7 @@ local function ensurePlot(player)
 	local plot = PlotService.GetPlot(player)
 	local state = states[player]
 	if state and state.plot == plot then return state end
-	local level = if state then state.level else 1
+	local level = if state then state.level else (restoredLevels[player] or 1)
 	if state then cleanup(state) end
 	states[player] = nil
 	if not plot then return nil end
@@ -4373,6 +5299,23 @@ local function ensurePlot(player)
 	return state
 end
 
+function Service.SetLevel(player, level)
+	if type(level) ~= "number" or level % 1 ~= 0 or not Config.Levels[level] then return false end
+	restoredLevels[player] = level
+	local state = states[player]
+	if state and state.level ~= level then
+		cleanup(state)
+		states[player] = nil
+		ensurePlot(player)
+	end
+	return true
+end
+
+function Service.GetLevel(player)
+	local state = states[player]
+	return state and state.level or restoredLevels[player] or 1
+end
+
 function Service.Start()
 	if started then return end
 	started = true
@@ -4388,7 +5331,10 @@ function Service.Start()
 	Players.PlayerRemoving:Connect(function(player)
 		release(player, false)
 		blockedZones[player] = nil
-		if states[player] then cleanup(states[player]); states[player] = nil end
+		task.defer(function()
+			if states[player] then cleanup(states[player]); states[player] = nil end
+			restoredLevels[player] = nil
+		end)
 	end)
 	local elapsed = 0
 	RunService.Heartbeat:Connect(function(dt)
@@ -4411,7 +5357,8 @@ function Service.Start()
 				blockedZones[player] = nil
 			end
 			local trainingZone
-			if root and humanoid and humanoid.Health > 0 and speed and speed:IsA("NumberValue") then
+			if player:GetAttribute("PlayerDataStatus") ~= "Loading"
+				and root and humanoid and humanoid.Health > 0 and speed and speed:IsA("NumberValue") then
 				if state and state.model and state.model.Parent == state.plot and PlotService.IsOwner(player, state.plot)
 					and contains(state.model.TrainingZone, root.Position) then
 					gain = Config.Levels[state.level].SpeedGain
@@ -4443,7 +5390,7 @@ return Service
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="35">
+      <Item class="Script" referent="44">
         <Properties>
           <string name="Name">TreadmillSystem</string>
           <token name="RunContext">0</token>
@@ -4454,30 +5401,30 @@ TreadmillService.Start()
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="36">
+  <Item class="SoundService" referent="45">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="37">
+  <Item class="StarterPlayer" referent="46">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="38">
+    <Item class="StarterPlayerScripts" referent="47">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="39">
+      <Item class="LocalScript" referent="48">
         <Properties>
           <string name="Name">Client</string>
           <string name="Source"><![CDATA[print("Hello world, from client!")
 ]]></string>
         </Properties>
-        <Item class="LocalScript" referent="40">
+        <Item class="LocalScript" referent="49">
           <Properties>
             <string name="Name">AreaLighting</string>
-            <string name="Source">local Players = game:GetService("Players")
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -4531,13 +5478,50 @@ local tweenInfo = TweenInfo.new(
 	Enum.EasingDirection.Out
 )
 
+-- Preserve the starting lighting before any area profile is applied.
+local defaultProperties = {}
+local activeTweens = {}
+
+local function rememberDefaults(object, propertyNames)
+	local properties = {}
+	for _, name in ipairs(propertyNames) do
+		properties[name] = object[name]
+	end
+	defaultProperties[object] = properties
+end
+
+rememberDefaults(Lighting, {
+	"Brightness", "ClockTime", "ExposureCompensation", "Ambient", "OutdoorAmbient",
+})
+rememberDefaults(atmosphere, { "Density", "Offset", "Color", "Decay", "Glare", "Haze" })
+rememberDefaults(colorCorrection, { "Brightness", "Contrast", "Saturation", "TintColor" })
+rememberDefaults(bloom, { "Intensity", "Size", "Threshold" })
+
+local function resetLighting()
+	for object, tween in pairs(activeTweens) do
+		tween:Cancel()
+		activeTweens[object] = nil
+	end
+	for object, properties in pairs(defaultProperties) do
+		for name, value in pairs(properties) do
+			object[name] = value
+		end
+	end
+	currentArea = nil
+	elapsed = 0
+end
+
 local function tweenObject(object, properties)
+	if activeTweens[object] then
+		activeTweens[object]:Cancel()
+	end
 	local tween = TweenService:Create(
 		object,
 		tweenInfo,
 		properties
 	)
 
+	activeTweens[object] = tween
 	tween:Play()
 
 	return tween
@@ -4644,9 +5628,9 @@ local function isPointInsidePart(point, part)
 	local halfSize = part.Size / 2
 
 	return
-		math.abs(relativePoint.X) &lt;= halfSize.X
-		and math.abs(relativePoint.Y) &lt;= halfSize.Y
-		and math.abs(relativePoint.Z) &lt;= halfSize.Z
+		math.abs(relativePoint.X) <= halfSize.X
+		and math.abs(relativePoint.Y) <= halfSize.Y
+		and math.abs(relativePoint.Z) <= halfSize.Z
 end
 
 local function getCurrentArea(position)
@@ -4673,6 +5657,11 @@ local function updateArea()
 		return
 	end
 
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
 	local rootPart =
 		character:FindFirstChild("HumanoidRootPart")
 
@@ -4693,29 +5682,74 @@ local function updateArea()
 	end
 end
 
+local deathConnection = nil
+
+local function onCharacterAdded(character)
+	if deathConnection then
+		deathConnection:Disconnect()
+		deathConnection = nil
+	end
+	resetLighting()
+
+	local humanoid = character:WaitForChild("Humanoid")
+	if player.Character ~= character then
+		return
+	end
+	deathConnection = humanoid.Died:Connect(resetLighting)
+	if humanoid.Health <= 0 then
+		resetLighting()
+	end
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+player.CharacterRemoving:Connect(function()
+	if deathConnection then
+		deathConnection:Disconnect()
+		deathConnection = nil
+	end
+	resetLighting()
+end)
+
+if player.Character then
+	task.spawn(onCharacterAdded, player.Character)
+end
+
 RunService.Heartbeat:Connect(function(deltaTime)
 
 	elapsed += deltaTime
 
-	if elapsed &lt; CHECK_INTERVAL then
+	if elapsed < CHECK_INTERVAL then
 		return
 	end
 
 	elapsed = 0
 
 	updateArea()
-end)</string>
+end)
+]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="41">
+        <Item class="LocalScript" referent="50">
           <Properties>
             <string name="Name">BiomeUI</string>
-            <string name="Source">local Players = game:GetService("Players")
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local event = ReplicatedStorage:WaitForChild("BiomeUIEvent")
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+
+local AUTO_HIDE_TIME = 2.5
+local SHOW_TIME = 0.22
+local HIDE_TIME = 0.18
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "BiomeUI"
@@ -4724,285 +5758,377 @@ gui.DisplayOrder = 10
 gui.IgnoreGuiInset = false
 gui.Parent = playerGui
 
--- Main panel
+--------------------------------------------------
+-- MAIN PANEL
+--------------------------------------------------
+
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
+
 panel.AnchorPoint = Vector2.new(0.5, 0)
 panel.Position = UDim2.new(0.5, 0, 0, 18)
-panel.Size = UDim2.new(0.9, 0, 0, 210)
-panel.BackgroundColor3 = Color3.fromRGB(16, 20, 29)
-panel.BackgroundTransparency = 0.05
+
+panel.Size = UDim2.new(0, 230, 0, 72)
+
+panel.BackgroundColor3 = Color3.fromRGB(10, 13, 18)
+panel.BackgroundTransparency = 0.28
+
 panel.BorderSizePixel = 0
 panel.Visible = false
+
 panel.Parent = gui
 
-local constraint = Instance.new("UISizeConstraint")
-constraint.MaxSize = Vector2.new(380, 210)
-constraint.MinSize = Vector2.new(300, 210)
-constraint.Parent = panel
+--------------------------------------------------
+-- CORNER
+--------------------------------------------------
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 18)
+corner.CornerRadius = UDim.new(0, 14)
 corner.Parent = panel
 
+--------------------------------------------------
+-- STROKE
+--------------------------------------------------
+
 local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(78, 96, 125)
-stroke.Transparency = 0.3
-stroke.Thickness = 1.5
+
+stroke.Color = Color3.fromRGB(255, 255, 255)
+stroke.Transparency = 0.88
+stroke.Thickness = 1
+
 stroke.Parent = panel
 
--- Soft gradient
+--------------------------------------------------
+-- GRADIENT
+--------------------------------------------------
+
 local gradient = Instance.new("UIGradient")
+
 gradient.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 37, 52)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 18, 27))
+	ColorSequenceKeypoint.new(
+		0,
+		Color3.fromRGB(28, 33, 44)
+	),
+
+	ColorSequenceKeypoint.new(
+		1,
+		Color3.fromRGB(11, 14, 20)
+	)
 })
+
 gradient.Rotation = 90
+
 gradient.Parent = panel
 
--- Inner top glow
-local glow = Instance.new("Frame")
-glow.Name = "Glow"
-glow.Position = UDim2.new(0, 12, 0, 8)
-glow.Size = UDim2.new(1, -24, 0, 2)
-glow.BackgroundColor3 = Color3.fromRGB(90, 175, 255)
-glow.BackgroundTransparency = 0.25
-glow.BorderSizePixel = 0
-glow.Parent = panel
-
-local glowCorner = Instance.new("UICorner")
-glowCorner.CornerRadius = UDim.new(1, 0)
-glowCorner.Parent = glow
-
--- Biome pill
-local biomeBadge = Instance.new("Frame")
-biomeBadge.Name = "BiomeBadge"
-biomeBadge.AnchorPoint = Vector2.new(0.5, 0)
-biomeBadge.Position = UDim2.new(0.5, 0, 0, 16)
-biomeBadge.Size = UDim2.new(0, 210, 0, 32)
-biomeBadge.BackgroundColor3 = Color3.fromRGB(32, 43, 60)
-biomeBadge.BackgroundTransparency = 0.08
-biomeBadge.BorderSizePixel = 0
-biomeBadge.Parent = panel
-
-local badgeCorner = Instance.new("UICorner")
-badgeCorner.CornerRadius = UDim.new(1, 0)
-badgeCorner.Parent = biomeBadge
-
-local badgeStroke = Instance.new("UIStroke")
-badgeStroke.Color = Color3.fromRGB(85, 150, 225)
-badgeStroke.Transparency = 0.5
-badgeStroke.Parent = biomeBadge
+--------------------------------------------------
+-- BIOME NAME
+--------------------------------------------------
 
 local biomeName = Instance.new("TextLabel")
+
 biomeName.Name = "BiomeName"
-biomeName.Size = UDim2.new(1, -20, 1, 0)
-biomeName.Position = UDim2.new(0, 10, 0, 0)
+
+biomeName.Position = UDim2.new(0, 14, 0, 10)
+biomeName.Size = UDim2.new(1, -28, 0, 25)
+
 biomeName.BackgroundTransparency = 1
-biomeName.Font = Enum.Font.GothamBlack
+
+biomeName.Font = Enum.Font.GothamBold
 biomeName.TextSize = 17
-biomeName.TextColor3 = Color3.fromRGB(238, 245, 255)
+
+biomeName.TextColor3 = Color3.fromRGB(245, 248, 255)
+
 biomeName.Text = ""
+
 biomeName.TextXAlignment = Enum.TextXAlignment.Center
-biomeName.Parent = biomeBadge
 
--- Stat cards
-local function createStatCard(name, xScale, title)
-	local card = Instance.new("Frame")
-	card.Name = name
-	card.Position = UDim2.new(xScale, 0, 0, 62)
-	card.Size = UDim2.new(0.5, -18, 0, 66)
-	card.BackgroundColor3 = Color3.fromRGB(26, 32, 44)
-	card.BackgroundTransparency = 0.05
-	card.BorderSizePixel = 0
-	card.Parent = panel
+biomeName.Parent = panel
 
-	local cardCorner = Instance.new("UICorner")
-	cardCorner.CornerRadius = UDim.new(0, 12)
-	cardCorner.Parent = card
+--------------------------------------------------
+-- RECOMMENDED SPEED
+--------------------------------------------------
 
-	local cardStroke = Instance.new("UIStroke")
-	cardStroke.Color = Color3.fromRGB(61, 72, 92)
-	cardStroke.Transparency = 0.55
-	cardStroke.Parent = card
+local recommended = Instance.new("TextLabel")
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Name = "Title"
-	titleLabel.Position = UDim2.new(0, 10, 0, 7)
-	titleLabel.Size = UDim2.new(1, -20, 0, 18)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Font = Enum.Font.GothamMedium
-	titleLabel.TextSize = 11
-	titleLabel.TextColor3 = Color3.fromRGB(145, 158, 180)
-	titleLabel.Text = title
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = card
+recommended.Name = "Recommended"
 
-	local value = Instance.new("TextLabel")
-	value.Name = "Value"
-	value.Position = UDim2.new(0, 10, 0, 25)
-	value.Size = UDim2.new(1, -20, 0, 32)
-	value.BackgroundTransparency = 1
-	value.Font = Enum.Font.GothamBlack
-	value.TextSize = 24
-	value.TextColor3 = Color3.fromRGB(245, 248, 255)
-	value.Text = "0"
-	value.TextXAlignment = Enum.TextXAlignment.Left
-	value.Parent = card
+recommended.Position = UDim2.new(0, 14, 0, 37)
+recommended.Size = UDim2.new(1, -28, 0, 22)
 
-	return card, value
-end
+recommended.BackgroundTransparency = 1
 
-local recommendedCard, recommendedValue =
-	createStatCard("RecommendedCard", 0, "RECOMMENDED SPEED")
+recommended.Font = Enum.Font.GothamMedium
+recommended.TextSize = 13
 
-recommendedCard.Position = UDim2.new(0, 12, 0, 62)
+recommended.TextColor3 = Color3.fromRGB(170, 180, 198)
 
-local currentCard, currentValue =
-	createStatCard("CurrentCard", 0.5, "YOUR SPEED")
+recommended.Text = "Recommended Speed  •  0"
 
-currentCard.Position = UDim2.new(0.5, 6, 0, 62)
+recommended.TextXAlignment = Enum.TextXAlignment.Center
 
--- Progress background
-local progressBackground = Instance.new("Frame")
-progressBackground.Name = "ProgressBackground"
-progressBackground.Position = UDim2.new(0, 12, 0, 140)
-progressBackground.Size = UDim2.new(1, -24, 0, 10)
-progressBackground.BackgroundColor3 = Color3.fromRGB(37, 44, 58)
-progressBackground.BorderSizePixel = 0
-progressBackground.Parent = panel
+recommended.Parent = panel
 
-local progressCorner = Instance.new("UICorner")
-progressCorner.CornerRadius = UDim.new(1, 0)
-progressCorner.Parent = progressBackground
-
-local progressFill = Instance.new("Frame")
-progressFill.Name = "ProgressFill"
-progressFill.Size = UDim2.new(0, 0, 1, 0)
-progressFill.BackgroundColor3 = Color3.fromRGB(82, 184, 255)
-progressFill.BorderSizePixel = 0
-progressFill.Parent = progressBackground
-
-local fillCorner = Instance.new("UICorner")
-fillCorner.CornerRadius = UDim.new(1, 0)
-fillCorner.Parent = progressFill
-
-local fillGradient = Instance.new("UIGradient")
-fillGradient.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(67, 143, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(94, 225, 255))
-})
-fillGradient.Parent = progressFill
-
--- Status
-local statusContainer = Instance.new("Frame")
-statusContainer.Name = "StatusContainer"
-statusContainer.AnchorPoint = Vector2.new(0.5, 0)
-statusContainer.Position = UDim2.new(0.5, 0, 0, 163)
-statusContainer.Size = UDim2.new(1, -24, 0, 34)
-statusContainer.BackgroundColor3 = Color3.fromRGB(33, 39, 51)
-statusContainer.BorderSizePixel = 0
-statusContainer.Parent = panel
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 10)
-statusCorner.Parent = statusContainer
-
-local status = Instance.new("TextLabel")
-status.Name = "Status"
-status.Size = UDim2.new(1, 0, 1, 0)
-status.BackgroundTransparency = 1
-status.Font = Enum.Font.GothamBlack
-status.TextSize = 18
-status.Text = ""
-status.TextColor3 = Color3.fromRGB(255, 255, 255)
-status.Parent = statusContainer
+--------------------------------------------------
+-- FORMAT SPEED
+--------------------------------------------------
 
 local function formatSpeed(value)
+
 	if value == math.floor(value) then
 		return string.format("%.0f", value)
 	end
 
-	return string.format("%.2f", value)
+	return string.format("%.1f", value)
+
 end
 
-local function updateProgress(playerSpeed, recommendedSpeed)
-	local ratio = 0
+--------------------------------------------------
+-- STATE
+--------------------------------------------------
 
-	if recommendedSpeed &gt; 0 then
-		ratio = math.clamp(playerSpeed / recommendedSpeed, 0, 1)
-	end
+local hideTask = nil
+local showing = false
 
-	TweenService:Create(
-		progressFill,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{
-			Size = UDim2.new(ratio, 0, 1, 0)
-		}
-	):Play()
-end
+--------------------------------------------------
+-- SHOW PANEL
+--------------------------------------------------
 
 local function showPanel()
-	panel.Position = UDim2.new(0.5, 0, 0, 4)
+
+	showing = true
+
+	panel.Position = UDim2.new(0.5, 0, 0, 5)
+
 	panel.BackgroundTransparency = 1
+
+	biomeName.TextTransparency = 1
+	recommended.TextTransparency = 1
+
 	panel.Visible = true
+
+	--------------------------------------------------
+	-- PANEL ANIMATION
+	--------------------------------------------------
 
 	TweenService:Create(
 		panel,
-		TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+
+		TweenInfo.new(
+			SHOW_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.Out
+		),
+
 		{
 			Position = UDim2.new(0.5, 0, 0, 18),
-			BackgroundTransparency = 0.05
+			BackgroundTransparency = 0.28
 		}
+
 	):Play()
+
+	--------------------------------------------------
+	-- TEXT ANIMATION
+	--------------------------------------------------
+
+	TweenService:Create(
+		biomeName,
+
+		TweenInfo.new(
+			SHOW_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.Out
+		),
+
+		{
+			TextTransparency = 0
+		}
+
+	):Play()
+
+	TweenService:Create(
+		recommended,
+
+		TweenInfo.new(
+			SHOW_TIME + 0.03,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.Out
+		),
+
+		{
+			TextTransparency = 0
+		}
+
+	):Play()
+
 end
 
-event.OnClientEvent:Connect(function(data)
-	if not data.Visible then
-		panel.Visible = false
+--------------------------------------------------
+-- HIDE PANEL
+--------------------------------------------------
+
+local function hidePanel()
+
+	if not panel.Visible then
 		return
 	end
 
-	biomeName.Text = string.upper(data.BiomeName)
+	showing = false
 
-	recommendedValue.Text =
-		formatSpeed(data.RecommendedSpeed)
+	--------------------------------------------------
+	-- TEXT FADE
+	--------------------------------------------------
 
-	currentValue.Text =
-		formatSpeed(data.PlayerSpeed)
+	TweenService:Create(
+		biomeName,
 
-	status.Text = data.Status
+		TweenInfo.new(
+			HIDE_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.In
+		),
 
-	updateProgress(
-		data.PlayerSpeed,
-		data.RecommendedSpeed
+		{
+			TextTransparency = 1
+		}
+
+	):Play()
+
+	TweenService:Create(
+		recommended,
+
+		TweenInfo.new(
+			HIDE_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.In
+		),
+
+		{
+			TextTransparency = 1
+		}
+
+	):Play()
+
+	--------------------------------------------------
+	-- PANEL HIDE
+	--------------------------------------------------
+
+	local tween = TweenService:Create(
+		panel,
+
+		TweenInfo.new(
+			HIDE_TIME,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.In
+		),
+
+		{
+			Position = UDim2.new(0.5, 0, 0, 5),
+			BackgroundTransparency = 1
+		}
+
 	)
 
-	if data.Status == "READY" then
-		status.TextColor3 = Color3.fromRGB(110, 255, 165)
-		statusContainer.BackgroundColor3 =
-			Color3.fromRGB(24, 66, 49)
+	tween:Play()
 
-		currentValue.TextColor3 =
-			Color3.fromRGB(110, 255, 165)
-	else
-		status.TextColor3 = Color3.fromRGB(255, 116, 116)
-		statusContainer.BackgroundColor3 =
-			Color3.fromRGB(72, 34, 39)
+	tween.Completed:Wait()
 
-		currentValue.TextColor3 =
-			Color3.fromRGB(255, 140, 140)
+	if not showing then
+		panel.Visible = false
 	end
+
+end
+
+--------------------------------------------------
+-- EVENT
+--------------------------------------------------
+
+event.OnClientEvent:Connect(function(data)
+
+	--------------------------------------------------
+	-- SERVER TRAŽI DA SE UI SAKRIJE
+	--------------------------------------------------
+
+	if not data.Visible then
+
+		if hideTask then
+			task.cancel(hideTask)
+			hideTask = nil
+		end
+
+		hidePanel()
+
+		return
+
+	end
+
+	--------------------------------------------------
+	-- UPDATE BIOME NAME
+	--------------------------------------------------
+
+	biomeName.Text = string.upper(
+		data.BiomeName or "UNKNOWN BIOME"
+	)
+
+	--------------------------------------------------
+	-- UPDATE RECOMMENDED SPEED
+	--------------------------------------------------
+
+	local speed = data.RecommendedSpeed or 0
+
+	recommended.Text =
+		"Recommended Speed  •  "
+		.. formatSpeed(speed)
+
+	--------------------------------------------------
+	-- CANCEL OLD AUTO HIDE
+	--------------------------------------------------
+
+	if hideTask then
+		task.cancel(hideTask)
+		hideTask = nil
+	end
+
+	--------------------------------------------------
+	-- SHOW UI
+	--------------------------------------------------
 
 	if not panel.Visible then
 		showPanel()
+	else
+		showing = true
+
+		panel.Position = UDim2.new(0.5, 0, 0, 18)
+		panel.BackgroundTransparency = 0.28
+
+		biomeName.TextTransparency = 0
+		recommended.TextTransparency = 0
 	end
+
+	--------------------------------------------------
+	-- AUTO HIDE
+	--------------------------------------------------
+
+	hideTask = task.delay(AUTO_HIDE_TIME, function()
+
+		hideTask = nil
+
+		if panel.Visible then
+			hidePanel()
+		end
+
+	end)
+
 end)
 
-event:FireServer("Ready")</string>
+--------------------------------------------------
+-- READY
+--------------------------------------------------
+
+event:FireServer("Ready")
+]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="42">
+        <Item class="LocalScript" referent="51">
           <Properties>
             <string name="Name">CustomMovementAnimations</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -5047,7 +6173,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="43">
+        <Item class="LocalScript" referent="52">
           <Properties>
             <string name="Name">EggPlacement</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -5170,7 +6296,355 @@ player.CharacterRemoving:Connect(clear)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="44">
+        <Item class="LocalScript" referent="53">
+          <Properties>
+            <string name="Name">GamePolish</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local Config = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("PolishConfig"))
+
+local POP = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local STUDS = "rbxassetid://6927295847"
+
+local function formatNumber(value)
+	value = tonumber(value) or 0
+	local absolute = math.abs(value)
+	if absolute >= 1e9 then return string.format("%.2fB", value / 1e9) end
+	if absolute >= 1e6 then return string.format("%.2fM", value / 1e6) end
+	if absolute >= 1e3 then return string.format("%.1fK", value / 1e3) end
+	if value == math.floor(value) then return tostring(math.floor(value)) end
+	return string.format("%.1f", value)
+end
+
+local function playSound(id, volume, speed)
+	if type(id) ~= "string" or id == "" then return nil end
+	local sound = Instance.new("Sound")
+	sound.SoundId = id
+	sound.Volume = volume or 0.35
+	sound.PlaybackSpeed = speed or 1
+	sound.Parent = SoundService
+	sound:Play()
+	Debris:AddItem(sound, 6)
+	return sound
+end
+
+-- HUD: server attributes remain the source of truth.
+local gui = Instance.new("ScreenGui")
+gui.Name = "PolishHUD"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.DisplayOrder = 15
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+local hud = Instance.new("Frame")
+hud.Name = "RateHUD"
+hud.AnchorPoint = Vector2.new(1, 0)
+hud.Position = UDim2.new(1, -22, 0, 18)
+hud.Size = UDim2.fromOffset(245, 72)
+hud.BackgroundColor3 = Color3.fromRGB(26, 29, 42)
+hud.BorderSizePixel = 0
+hud.Parent = gui
+
+local hudCorner = Instance.new("UICorner")
+hudCorner.CornerRadius = UDim.new(0, 13)
+hudCorner.Parent = hud
+local hudStroke = Instance.new("UIStroke")
+hudStroke.Color = Color3.fromRGB(15, 15, 18)
+hudStroke.Thickness = 3
+hudStroke.Parent = hud
+
+local texture = Instance.new("ImageLabel")
+texture.Name = "Studs"
+texture.Size = UDim2.fromScale(1, 1)
+texture.BackgroundTransparency = 1
+texture.Image = STUDS
+texture.ImageTransparency = 0.78
+texture.ScaleType = Enum.ScaleType.Tile
+texture.TileSize = UDim2.fromOffset(54, 54)
+texture.ZIndex = 0
+texture.Parent = hud
+local textureCorner = Instance.new("UICorner")
+textureCorner.CornerRadius = hudCorner.CornerRadius
+textureCorner.Parent = texture
+
+local function rateLabel(name, position, color)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.Position = position
+	label.Size = UDim2.new(1, -24, 0, 27)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextColor3 = color
+	label.TextSize = 19
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.ZIndex = 2
+	label.Parent = hud
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.new(0, 0, 0)
+	stroke.Thickness = 2
+	stroke.Parent = label
+	return label
+end
+
+local cashRate = rateLabel("CashPerSecond", UDim2.fromOffset(13, 8), Color3.fromRGB(92, 255, 116))
+local speedRate = rateLabel("SpeedPerSecond", UDim2.fromOffset(13, 37), Color3.fromRGB(85, 190, 255))
+
+local banner = Instance.new("TextLabel")
+banner.Name = "EventBanner"
+banner.AnchorPoint = Vector2.new(0.5, 0.5)
+banner.Position = UDim2.fromScale(0.5, 0.25)
+banner.Size = UDim2.fromOffset(430, 64)
+banner.BackgroundTransparency = 1
+banner.Font = Enum.Font.FredokaOne
+banner.TextColor3 = Color3.new(1, 1, 1)
+banner.TextStrokeColor3 = Color3.new(0, 0, 0)
+banner.TextStrokeTransparency = 0
+banner.TextScaled = true
+banner.TextTransparency = 1
+banner.ZIndex = 100
+banner.Parent = gui
+local bannerScale = Instance.new("UIScale")
+bannerScale.Scale = 0.75
+bannerScale.Parent = banner
+
+gui.Parent = playerGui
+
+local function refreshRates()
+	cashRate.Text = "$" .. formatNumber(player:GetAttribute("CashPerSecond")) .. " / sec"
+	local training = tonumber(player:GetAttribute("TrainingSpeedPerSecond")) or 0
+	speedRate.Text = if training > 0 then "+" .. formatNumber(training) .. " Speed / sec" else "Speed training: idle"
+	speedRate.TextColor3 = if training > 0 then Color3.fromRGB(85, 190, 255) else Color3.fromRGB(170, 178, 195)
+end
+
+player:GetAttributeChangedSignal("CashPerSecond"):Connect(refreshRates)
+player:GetAttributeChangedSignal("TrainingSpeedPerSecond"):Connect(refreshRates)
+refreshRates()
+
+local bannerGeneration = 0
+local function showBanner(text, color)
+	bannerGeneration += 1
+	local generation = bannerGeneration
+	banner.Text = text
+	banner.TextColor3 = color
+	banner.TextTransparency = 1
+	bannerScale.Scale = 0.72
+	TweenService:Create(banner, TweenInfo.new(0.2), { TextTransparency = 0 }):Play()
+	TweenService:Create(bannerScale, POP, { Scale = 1 }):Play()
+	task.delay(1.25, function()
+		if generation ~= bannerGeneration then return end
+		TweenService:Create(banner, TweenInfo.new(0.28), { TextTransparency = 1 }):Play()
+		TweenService:Create(bannerScale, TweenInfo.new(0.28), { Scale = 1.12 }):Play()
+	end)
+end
+
+local function floatingText(text, color, position)
+	local label = Instance.new("TextLabel")
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Position = position
+	label.Size = UDim2.fromOffset(230, 42)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.Text = text
+	label.TextColor3 = color
+	label.TextSize = 25
+	label.TextStrokeTransparency = 0
+	label.ZIndex = 90
+	label.Parent = gui
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.72
+	scale.Parent = label
+	TweenService:Create(scale, POP, { Scale = 1 }):Play()
+	TweenService:Create(label, TweenInfo.new(0.85, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = position - UDim2.fromOffset(0, 65),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+	Debris:AddItem(label, 0.9)
+end
+
+-- Floating Cash and Speed are derived from replicated stat deltas, never awarded here.
+task.spawn(function()
+	local stats = player:WaitForChild("Stats", 20)
+	if not stats then return end
+	local cash = stats:WaitForChild("Cash", 10)
+	local speed = stats:WaitForChild("Speed", 10)
+	local oldCash = cash and cash.Value or 0
+	local oldSpeed = speed and speed.Value or 0
+	if cash then
+		cash.Changed:Connect(function(value)
+			local delta = value - oldCash
+			oldCash = value
+			if delta > 0 and (tonumber(player:GetAttribute("CashPerSecond")) or 0) > 0 then
+				floatingText("+$" .. formatNumber(delta), Color3.fromRGB(92, 255, 116), UDim2.new(1, -145, 0, 112))
+			end
+		end)
+	end
+	if speed then
+		speed.Changed:Connect(function(value)
+			local delta = value - oldSpeed
+			oldSpeed = value
+			if delta > 0 and (tonumber(player:GetAttribute("TrainingSpeedPerSecond")) or 0) > 0 then
+				floatingText("+" .. formatNumber(delta) .. " SPEED", Color3.fromRGB(85, 190, 255), UDim2.fromScale(0.5, 0.72))
+			end
+		end)
+	end
+end)
+
+local function animateOpen(screenGui)
+	if screenGui == gui or not screenGui.Enabled then return end
+	local root = screenGui:FindFirstChildWhichIsA("GuiObject")
+	if not root then return end
+	local scale = root:FindFirstChild("PolishOpenScale")
+	if not scale then
+		scale = Instance.new("UIScale")
+		scale.Name = "PolishOpenScale"
+		scale.Parent = root
+	end
+	scale.Scale = 0.9
+	TweenService:Create(scale, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+end
+
+local function registerGui(child)
+	if not child:IsA("ScreenGui") or child == gui then return end
+	child:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if child.Enabled then animateOpen(child) end
+	end)
+end
+
+for _, child in ipairs(playerGui:GetChildren()) do registerGui(child) end
+playerGui.ChildAdded:Connect(registerGui)
+
+local function rarityColor(rarity)
+	return Config.RarityColors[rarity] or Color3.new(1, 1, 1)
+end
+
+local function hatchBurst(monster, rarity, isOwner)
+	if not monster or not monster:IsA("Model") or not monster.Parent then return end
+	local primary = monster.PrimaryPart or monster:FindFirstChildWhichIsA("BasePart", true)
+	if not primary then return end
+	local color = rarityColor(rarity)
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "HatchHighlight"
+	highlight.FillColor = color
+	highlight.OutlineColor = Color3.new(1, 1, 1)
+	highlight.FillTransparency = 0.15
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = monster
+	TweenService:Create(highlight, TweenInfo.new(0.9), { FillTransparency = 1, OutlineTransparency = 1 }):Play()
+	Debris:AddItem(highlight, 1)
+
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "HatchBurst"
+	attachment.Parent = primary
+	local particles = Instance.new("ParticleEmitter")
+	particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Color = ColorSequence.new(color, Color3.new(1, 1, 1))
+	particles.LightEmission = 0.7
+	particles.Lifetime = NumberRange.new(0.55, 1.1)
+	particles.Speed = NumberRange.new(6, 12)
+	particles.SpreadAngle = Vector2.new(180, 180)
+	particles.Drag = 3
+	particles.Rate = 0
+	particles.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.55),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	particles.Parent = attachment
+	particles:Emit(Config.RarityBurstCount[rarity] or 20)
+	Debris:AddItem(attachment, 1.5)
+	if isOwner then
+		showBanner(string.upper(tostring(rarity)) .. " HATCH!", color)
+		playSound(Config.Sounds.Hatch, 0.5, 0.9 + math.random() * 0.2)
+	end
+end
+
+local polishEvent = ReplicatedStorage:WaitForChild("PolishEvent", 20)
+if polishEvent and polishEvent:IsA("RemoteEvent") then
+	polishEvent.OnClientEvent:Connect(function(action, monster, rarity, ownerUserId)
+		if action == "Hatch" then
+			hatchBurst(monster, rarity, ownerUserId == player.UserId)
+		end
+	end)
+end
+
+local chaseSound
+local runEvent = ReplicatedStorage:WaitForChild("RunUIEvent", 20)
+if runEvent and runEvent:IsA("RemoteEvent") then
+	runEvent.OnClientEvent:Connect(function(running, reason)
+		local camera = workspace.CurrentCamera
+		if running then
+			showBanner("RUN!", Color3.fromRGB(255, 67, 67))
+			playSound(Config.Sounds.Pickup, 0.45, 1)
+			if camera then TweenService:Create(camera, TweenInfo.new(0.25), { FieldOfView = 76 }):Play() end
+			if Config.Sounds.ChaseMusicId ~= "" and not chaseSound then
+				chaseSound = Instance.new("Sound")
+				chaseSound.Name = "ChaseMusic"
+				chaseSound.SoundId = Config.Sounds.ChaseMusicId
+				chaseSound.Volume = 0.45
+				chaseSound.Looped = true
+				chaseSound.Parent = SoundService
+				chaseSound:Play()
+			end
+		else
+			if camera then TweenService:Create(camera, TweenInfo.new(0.35), { FieldOfView = 70 }):Play() end
+			if chaseSound then chaseSound:Destroy(); chaseSound = nil end
+			if reason == "Deposited" then
+				showBanner("EGG SECURED!", Color3.fromRGB(92, 255, 116))
+				playSound(Config.Sounds.Deposit, 0.45, 1)
+			end
+		end
+	end)
+end
+
+-- Floating income above owned monsters. Visual only; IncomeService performs payment.
+task.spawn(function()
+	while gui.Parent do
+		task.wait(3)
+		local shown = 0
+		for _, monster in ipairs(workspace:GetDescendants()) do
+			if shown >= 16 then break end
+			if monster:IsA("Model") and monster:GetAttribute("IsMonster") == true
+				and monster:GetAttribute("OwnerUserId") == player.UserId then
+				local income = tonumber(monster:GetAttribute("FinalIncome")) or 0
+				local primary = monster.PrimaryPart
+				if primary and income > 0 then
+					shown += 1
+					local bill = Instance.new("BillboardGui")
+					bill.Name = "IncomeFloat"
+					bill.Adornee = primary
+					bill.Size = UDim2.fromOffset(150, 40)
+					bill.StudsOffsetWorldSpace = Vector3.new(math.random(-10, 10) / 10, 3, 0)
+					bill.AlwaysOnTop = true
+					bill.MaxDistance = 90
+					bill.Parent = primary
+					local text = Instance.new("TextLabel")
+					text.Size = UDim2.fromScale(1, 1)
+					text.BackgroundTransparency = 1
+					text.Font = Enum.Font.FredokaOne
+					text.Text = "+$" .. formatNumber(income)
+					text.TextColor3 = Color3.fromRGB(92, 255, 116)
+					text.TextSize = 22
+					text.TextStrokeTransparency = 0
+					text.Parent = bill
+					TweenService:Create(bill, TweenInfo.new(1), { StudsOffsetWorldSpace = bill.StudsOffsetWorldSpace + Vector3.new(0, 2, 0) }):Play()
+					TweenService:Create(text, TweenInfo.new(1), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+					Debris:AddItem(bill, 1.05)
+				end
+			end
+		end
+	end
+end)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="54">
           <Properties>
             <string name="Name">GuardianRagdoll</string>
             <string name="Source"><![CDATA[-- Match the local Humanoid/animation controller to the server's hit state.
@@ -5242,7 +6716,7 @@ if player.Character then task.spawn(setup, player.Character) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="45">
+        <Item class="LocalScript" referent="55">
           <Properties>
             <string name="Name">IndexUI</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -5432,14 +6906,23 @@ if existing then task.spawn(bind, existing) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="46">
+        <Item class="LocalScript" referent="56">
           <Properties>
             <string name="Name">LavaAnimation (Thermal Chamber)</string>
-            <string name="Source">local RunService = game:GetService("RunService")
+            <string name="Source"><![CDATA[local RunService = game:GetService("RunService")
 
-local lavaFloor = workspace:WaitForChild("LavaFloor")
-local texture = lavaFloor:WaitForChild("Texture")
-local light = lavaFloor:WaitForChild("SurfaceLight")
+local lavaFloor = workspace:FindFirstChild("LavaFloor")
+if not lavaFloor then
+	warn("[LavaAnimation] Workspace.LavaFloor nije pronađen; animacija lave je preskočena.")
+	return
+end
+
+local texture = lavaFloor:FindFirstChild("Texture")
+local light = lavaFloor:FindFirstChild("SurfaceLight")
+if not texture or not texture:IsA("Texture") or not light or not light:IsA("SurfaceLight") then
+	warn("[LavaAnimation] LavaFloor mora imati Texture i SurfaceLight; animacija lave je preskočena.")
+	return
+end
 
 -- =========================
 -- POMERANJE LAVE
@@ -5505,10 +6988,288 @@ RunService.RenderStepped:Connect(function(dt)
 	-- Kad je pulse jači, lava je manje providna
 	texture.Transparency =
 		BASE_TRANSPARENCY + (1 - pulse) * TRANSPARENCY_PULSE
-end)</string>
+end)
+]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="47">
+        <Item class="LocalScript" referent="57">
+          <Properties>
+            <string name="Name">MonsterAnimations</string>
+            <string name="Source"><![CDATA[local ContentProvider = game:GetService("ContentProvider")
+
+local tracked = setmetatable({}, { __mode = "k" })
+local pending = setmetatable({}, { __mode = "k" })
+
+local function animationFor(monster)
+	local embedded = monster:FindFirstChild("WalkAnimation", true)
+	if embedded and embedded:IsA("Animation") and embedded.AnimationId ~= "" then
+		return embedded
+	end
+
+	local animationId = monster:GetAttribute("WalkAnimationId")
+	if type(animationId) == "number" then animationId = tostring(animationId) end
+	if type(animationId) ~= "string" or animationId == "" then return nil end
+	if not string.find(animationId, "^rbxassetid://") then animationId = "rbxassetid://" .. animationId end
+
+	local animation = Instance.new("Animation")
+	animation.Name = "RuntimeWalkAnimation"
+	animation.AnimationId = animationId
+	animation.Parent = monster
+	return animation
+end
+
+local function animatorFor(monster)
+	local humanoid = monster:FindFirstChildWhichIsA("Humanoid", true)
+	local controller = humanoid or monster:FindFirstChildWhichIsA("AnimationController", true)
+	if not controller then
+		controller = Instance.new("AnimationController")
+		controller.Name = "MonsterAnimationController"
+		controller.Parent = monster
+	end
+	local animator = controller:FindFirstChildWhichIsA("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = controller
+	end
+	return animator
+end
+
+local function register(monster)
+	if tracked[monster] or not monster:IsA("Model") or monster:GetAttribute("IsMonster") ~= true then return end
+	local animation = animationFor(monster)
+	if not animation then
+		-- Replication can deliver the Model before its Animation child. Retry briefly
+		-- so the animation is not missed just because of that ordering.
+		if pending[monster] then return end
+		pending[monster] = true
+		task.spawn(function()
+			for _, delaySeconds in ipairs({ 0.1, 0.4, 1, 2, 4 }) do
+				task.wait(delaySeconds)
+				if not monster.Parent or tracked[monster] then break end
+				if animationFor(monster) then
+					pending[monster] = nil
+					register(monster)
+					return
+				end
+			end
+			pending[monster] = nil
+		end)
+		return
+	end
+
+	local animator = animatorFor(monster)
+	task.spawn(function()
+		pcall(ContentProvider.PreloadAsync, ContentProvider, { animation })
+	end)
+	local ok, track = pcall(animator.LoadAnimation, animator, animation)
+	if not ok then
+		warn("[MonsterAnimations] Walk animation could not load for " .. monster.Name .. ": " .. tostring(track))
+		return
+	end
+	track.Looped = true
+	track.Priority = Enum.AnimationPriority.Movement
+	track:AdjustSpeed(1)
+
+	local function refresh()
+		if monster:GetAttribute("WanderState") == "Walking" then
+			if not track.IsPlaying then track:Play(0.15) end
+		elseif track.IsPlaying then
+			track:Stop(0.15)
+		end
+	end
+
+	local stateConnection = monster:GetAttributeChangedSignal("WanderState"):Connect(refresh)
+	local ancestryConnection
+	ancestryConnection = monster.AncestryChanged:Connect(function(_, parent)
+		if parent then return end
+		stateConnection:Disconnect()
+		ancestryConnection:Disconnect()
+		track:Stop(0)
+		tracked[monster] = nil
+	end)
+	tracked[monster] = true
+	refresh()
+end
+
+for _, descendant in ipairs(workspace:GetDescendants()) do register(descendant) end
+workspace.DescendantAdded:Connect(function(descendant)
+	register(descendant)
+	local model = descendant:FindFirstAncestorOfClass("Model")
+	if model then register(model) end
+end)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="58">
+          <Properties>
+            <string name="Name">OfflineIncomeUI</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local shown = false
+
+local function formatDuration(seconds)
+	local hours = math.floor(seconds / 3600)
+	local minutes = math.floor((seconds % 3600) / 60)
+	if hours > 0 then return string.format("%dh %02dm", hours, minutes) end
+	return string.format("%dm", math.max(1, minutes))
+end
+
+local function showOfflineIncome()
+	if shown or player:GetAttribute("PlayerDataStatus") ~= "Ready" then return end
+	local amount = tonumber(player:GetAttribute("OfflineIncomeAmount")) or 0
+	local seconds = tonumber(player:GetAttribute("OfflineIncomeSeconds")) or 0
+	if amount <= 0 or seconds <= 0 then return end
+	shown = true
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "OfflineIncomeUi"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 50
+	local frame = Instance.new("Frame")
+	frame.AnchorPoint = Vector2.new(0.5, 0)
+	frame.Position = UDim2.fromScale(0.5, 0.08)
+	frame.Size = UDim2.fromOffset(390, 92)
+	frame.BackgroundColor3 = Color3.fromRGB(24, 28, 38)
+	frame.BackgroundTransparency = 0.08
+	frame.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = frame
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 205, 70)
+	stroke.Thickness = 2
+	stroke.Parent = frame
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextSize = 22
+	label.TextWrapped = true
+	label.Text = string.format("Welcome back!\nYou earned $%s in %s", string.format("%.1f", amount), formatDuration(seconds))
+	label.Parent = frame
+	gui.Parent = player:WaitForChild("PlayerGui")
+	task.delay(8, function() if gui.Parent then gui:Destroy() end end)
+end
+
+player:GetAttributeChangedSignal("PlayerDataStatus"):Connect(showOfflineIncome)
+player:GetAttributeChangedSignal("OfflineIncomeAmount"):Connect(showOfflineIncome)
+player:GetAttributeChangedSignal("OfflineIncomeSeconds"):Connect(showOfflineIncome)
+task.defer(showOfflineIncome)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="59">
+          <Properties>
+            <string name="Name">PlotUpgradeUI</string>
+            <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local event = ReplicatedStorage:WaitForChild("PlotUpgradeEvent", 15)
+if not event then warn("[PlotUpgradeUI] PlotUpgradeEvent was not initialized"); return end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "PlotUpgradeUi"
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 20
+
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.AnchorPoint = Vector2.new(1, 0.5)
+panel.Position = UDim2.new(1, -24, 0.5, 0)
+panel.Size = UDim2.fromOffset(270, 132)
+panel.BackgroundColor3 = Color3.fromRGB(24, 28, 38)
+panel.BackgroundTransparency = 0.08
+panel.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = panel
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(115, 205, 255)
+stroke.Thickness = 2
+stroke.Parent = panel
+
+local title = Instance.new("TextLabel")
+title.Position = UDim2.fromOffset(12, 8)
+title.Size = UDim2.new(1, -24, 0, 28)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.Text = "PLOT CAPACITY"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 19
+title.Parent = panel
+
+local capacityLabel = Instance.new("TextLabel")
+capacityLabel.Position = UDim2.fromOffset(12, 38)
+capacityLabel.Size = UDim2.new(1, -24, 0, 24)
+capacityLabel.BackgroundTransparency = 1
+capacityLabel.Font = Enum.Font.GothamMedium
+capacityLabel.TextColor3 = Color3.fromRGB(205, 220, 235)
+capacityLabel.TextSize = 16
+capacityLabel.Parent = panel
+
+local button = Instance.new("TextButton")
+button.Position = UDim2.fromOffset(12, 70)
+button.Size = UDim2.new(1, -24, 0, 48)
+button.BackgroundColor3 = Color3.fromRGB(55, 165, 225)
+button.AutoButtonColor = true
+button.Font = Enum.Font.GothamBold
+button.TextColor3 = Color3.new(1, 1, 1)
+button.TextSize = 17
+button.Parent = panel
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 10)
+buttonCorner.Parent = button
+
+local busy = false
+local function refresh()
+	local capacity = tonumber(player:GetAttribute("PlotCapacity")) or 6
+	local nextCapacity = tonumber(player:GetAttribute("PlotUpgradeNextCapacity")) or 0
+	local cost = tonumber(player:GetAttribute("PlotUpgradeCost")) or 0
+	local maxed = player:GetAttribute("PlotUpgradeMaxed") == true
+	local status = player:GetAttribute("PlotUpgradeStatus")
+	capacityLabel.Text = string.format("Current slots: %d", capacity)
+	if maxed then
+		button.Text = "MAX CAPACITY (16)"
+		button.BackgroundColor3 = Color3.fromRGB(80, 90, 105)
+		button.Active = false
+	elseif status == "NotEnoughCash" then
+		button.Text = string.format("Need $%s for %d slots", tostring(cost), nextCapacity)
+		button.BackgroundColor3 = Color3.fromRGB(200, 75, 70)
+		button.Active = true
+	elseif status == "DataNotReady" then
+		button.Text = "DATA NOT READY"
+		button.BackgroundColor3 = Color3.fromRGB(200, 130, 55)
+		button.Active = true
+	else
+		button.Text = string.format("UPGRADE TO %d — $%s", nextCapacity, tostring(cost))
+		button.BackgroundColor3 = Color3.fromRGB(55, 165, 225)
+		button.Active = true
+	end
+	busy = false
+end
+
+button.Activated:Connect(function()
+	if busy or player:GetAttribute("PlotUpgradeMaxed") == true then return end
+	busy = true
+	event:FireServer()
+	task.delay(1, function() busy = false end)
+end)
+
+for _, attribute in ipairs({ "PlotCapacity", "PlotUpgradeNextCapacity", "PlotUpgradeCost",
+	"PlotUpgradeMaxed", "PlotUpgradeStatus" }) do
+	player:GetAttributeChangedSignal(attribute):Connect(refresh)
+end
+
+gui.Parent = player:WaitForChild("PlayerGui")
+refresh()
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="60">
           <Properties>
             <string name="Name">TreadmillAnimation</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -5583,7 +7344,7 @@ if player.Character then task.spawn(setup, player.Character) end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="48">
+        <Item class="LocalScript" referent="61">
           <Properties>
             <string name="Name">TreadmillControls</string>
             <string name="Source"><![CDATA[local Players = game:GetService("Players")
@@ -5614,13 +7375,13 @@ end)
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="49">
+  <Item class="Workspace" referent="62">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
       <bool name="NeedsPivotMigration">false</bool>
     </Properties>
-    <Item class="Part" referent="50">
+    <Item class="Part" referent="63">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

@@ -9,6 +9,7 @@ local Service = {}
 local active = {}
 local random = Random.new()
 local started = false
+local polishEvent
 
 -- Prepare before consuming inventory. Failure leaves the equipped egg untouched.
 function Service.Prepare(egg, savedMonsterId)
@@ -53,6 +54,13 @@ function Service.Start()
 	if started then return end
 	started = true
 	IndexService.Start()
+	polishEvent = ReplicatedStorage:FindFirstChild("PolishEvent")
+	if not polishEvent then
+		polishEvent = Instance.new("RemoteEvent")
+		polishEvent.Name = "PolishEvent"
+		polishEvent.Parent = ReplicatedStorage
+	end
+	assert(polishEvent:IsA("RemoteEvent"), "PolishEvent must be a RemoteEvent")
 	local elapsed = 0
 	RunService.Heartbeat:Connect(function(dt)
 		elapsed += dt
@@ -82,6 +90,12 @@ function Service.Start()
 				-- Keep one occupied entry in PlacedEggs; monsters count toward the same six-place limit.
 				active[egg] = nil
 				entry.monster.Parent = egg.Parent
+				polishEvent:FireAllClients(
+					"Hatch",
+					entry.monster,
+					entry.monster:GetAttribute("Rarity"),
+					entry.owner
+				)
 				egg:Destroy()
 				local owner = Players:GetPlayerByUserId(entry.owner)
 				if owner then IndexService.RecordHatch(owner, entry.monster) end

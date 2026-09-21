@@ -2,6 +2,14 @@
 
 Status 2026-09-20: implementirano, čeka Roblox Studio i DataStore potvrdu.
 
+Ispravka 2026-09-21: završni save sada koristi jedan zaključani snapshot. U Studio-u
+`PlayerRemoving` i `BindToClose` mogu da se pokrenu zajedno; ranije je kasniji,
+prazan snapshot nakon čišćenja plota mogao da prepiše već sačuvane monstere.
+Promena sadržaja `PlacedEggs` sada pokreće i debounced save nakon jedne sekunde,
+pa postavljanje i hatch ne zavise od sledećeg autosave-a ili gašenja Studija.
+`LoadedMonsterCount` i `SavedMonsterCount` Player atributi, zajedno sa
+`[PlayerDataService] Loaded/Saved` Output porukama, pokazuju stvaran broj zapisa.
+
 ## Šta se čuva
 
 Jedan DataStore `MonsterEggPlayerData_v1`, ključ `u_<UserId>`, čuva verzionisan Lua zapis:
@@ -32,5 +40,7 @@ Ako objedinjeni zapis još ne postoji, servis čita stari `MonsterEggIndex_v1`. 
 6. Reset Character ne sme da duplira Tool-ove ili promeni UID. Dva igrača moraju dobiti odvojene podatke i plot sadržaj.
 7. Sa isključenim API pristupom proveri `LoadFailed`: gameplay ostaje upotrebljiv u toj sesiji, Output ima upozorenje i servis ne pokušava da upiše prazne podatke.
 8. Za migraciju koristi nalog sa postojećim Index zapisom, bez novog player-data zapisa. Nakon ulaska stari unlock-i moraju ostati vidljivi i ući u novi save.
+9. Posebno proveri Studio Stop sa najmanje jednim monsterom, zatim ponovo pokreni
+   test. Monster mora da se vrati sa istim UID-em i približno istom pozicijom.
 
 Rojo build proverava strukturu i sintaksu projekta. DataStore, napuštanje servera, restore modela i migracija moraju se potvrditi u objavljenom Studio testu.

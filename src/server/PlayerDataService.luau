@@ -9,15 +9,19 @@ local HatchService = require(script.Parent:WaitForChild("HatchService"))
 local MonsterService = require(script.Parent:WaitForChild("MonsterService"))
 local IndexService = require(script.Parent:WaitForChild("IndexService"))
 local Placement = require(ReplicatedStorage.Modules:WaitForChild("EggPlacement"))
+local MonsterConfig = require(ReplicatedStorage.Modules:WaitForChild("MonsterConfig"))
+local PlotUpgradeConfig = require(ReplicatedStorage.Modules:WaitForChild("PlotUpgradeConfig"))
 
 local Service = {}
 local STORE_NAME = "MonsterEggPlayerData_v1"
 local LEGACY_INDEX_STORE = "MonsterEggIndex_v1"
 local AUTOSAVE_SECONDS = 60
+local MAX_OFFLINE_SECONDS = 6 * 60 * 60
 local states = {}
 local started = false
 local store
 local legacyStore
+local savePlayer
 
 local eggFields = { "UID", "EggType", "EggName", "Biome", "Rarity", "Size", "Scale" }
 local sizeRanks = { Tiny = 1, Normal = 2, Large = 3, Huge = 4, Titanic = 5 }
@@ -67,6 +71,22 @@ local function snapshotPlaced(player, plot)
 	return eggs, monsters
 end
 
+local function savedMonsterIncome(monsters)
+	local total = 0
+	local seen = {}
+	if type(monsters) ~= "table" then return total end
+	for index, monster in ipairs(monsters) do
+		if index > 100 then break end
+		local uid = monster.UID
+		if type(uid) == "string" and uid ~= "" and not seen[uid] then
+			seen[uid] = true
+			local income = MonsterConfig.CalculateIncome(monster.MonsterId, monster.Rarity, monster.Size)
+			if finite(income) and income > 0 then total += income end
+		end
+	end
+	return total
+end
+
 local function snapshot(player)
 	local stats = player:FindFirstChild("Stats")
 	local speed = stats and stats:FindFirstChild("Speed")
@@ -86,6 +106,9 @@ local function snapshot(player)
 		Monsters = monsters,
 		IndexUnlocks = IndexService.Export(player),
 		SavedAt = os.time(),
+		-- This is the timestamp paired with the saved Cash/monster snapshot. Updating it
+		-- on autosave also makes crash recovery bounded without replaying paid online time.
+		LastLogoutTime = os.time(),
 	}
 end
 
@@ -161,7 +184,7 @@ local function apply(player, data)
 	if speed and finite(data.Stats.Speed) then speed.Value = math.max(0, data.Stats.Speed) end
 	if cash and finite(data.Stats.Cash) then cash.Value = math.max(0, data.Stats.Cash) end
 	local capacity = tonumber(data.SlotCapacity)
-	if capacity and capacity % 1 == 0 and capacity >= 6 and capacity <= 100 then plot:SetAttribute("SlotCapacity", capacity) end
+	if capacity and PlotUpgradeConfig.GetLevel(capacity) then plot:SetAttribute("SlotCapacity", capacity) end
 	TreadmillService.SetLevel(player, tonumber(data.OwnedTreadmill) or 1)
 	EggInventoryService.Restore(player, inventory, data.EggInventory)
 	IndexService.Import(player, data.IndexUnlocks)
@@ -170,11 +193,34 @@ end
 
 local function loadPlayer(player)
 	if states[player] then return end
-	local state = { loaded = false, saving = false }
+	local state = { loaded = false, saving = false, closing = false, finalized = false }
 	states[player] = state
 	player:SetAttribute("PlayerDataStatus", "Loading")
 	player:SetAttribute("IndexDataStatus", "Loading")
-	local ok, data = retry(function() return store:GetAsync("u_" .. player.UserId) end)
+	player:SetAttribute("OfflineIncomeAmount", 0)
+	player:SetAttribute("OfflineIncomeSeconds", 0)
+	local offlineIncome, offlineSeconds = 0, 0
+	local now = os.time()
+	-- Claim offline income atomically. LastLogoutTime is advanced in the same write as
+	-- Cash, so reconnects or overlapping servers cannot pay the same interval twice.
+	local ok, data = retry(function()
+		return store:UpdateAsync("u_" .. player.UserId, function(old)
+			if old == nil then return nil end
+			if not validData(old) then error("Unsupported player data; refusing offline claim") end
+			local previous = tonumber(old.LastLogoutTime) or tonumber(old.SavedAt) or now
+			local elapsed = math.clamp(math.floor(now - previous), 0, MAX_OFFLINE_SECONDS)
+			local rate = savedMonsterIncome(old.Monsters)
+			local earned = rate * elapsed
+			if not finite(earned) or earned < 0 then earned = 0 end
+			local cash = tonumber(old.Stats.Cash)
+			if not finite(cash) or cash < 0 then cash = 0 end
+			offlineIncome, offlineSeconds = earned, elapsed
+			old.Stats.Cash = cash + earned
+			old.LastLogoutTime = now
+			old.SavedAt = now
+			return old
+		end)
+	end)
 	if not ok or not validData(data) then
 		player:SetAttribute("PlayerDataStatus", "LoadFailed")
 		player:SetAttribute("IndexDataStatus", "LoadFailed")
@@ -183,7 +229,8 @@ local function loadPlayer(player)
 	end
 	if data == nil then
 		data = { Version = 1, Stats = { Speed = 0, Cash = 1000 }, OwnedTreadmill = 1, SlotCapacity = 6,
-			EggInventory = {}, PlacedEggs = {}, Monsters = {}, IndexUnlocks = {} }
+			EggInventory = {}, PlacedEggs = {}, Monsters = {}, IndexUnlocks = {},
+			SavedAt = now, LastLogoutTime = now }
 		local legacyOk, legacy = retry(function() return legacyStore:GetAsync("u_" .. player.UserId) end)
 		if not legacyOk then
 			player:SetAttribute("PlayerDataStatus", "LoadFailed")
@@ -210,12 +257,42 @@ local function loadPlayer(player)
 		return
 	end
 	state.loaded = true
+	player:SetAttribute("LoadedMonsterCount", #data.Monsters)
+	player:SetAttribute("OfflineIncomeAmount", offlineIncome)
+	player:SetAttribute("OfflineIncomeSeconds", offlineSeconds)
 	player:SetAttribute("PlayerDataStatus", "Ready")
 	player:SetAttribute("IndexDataStatus", "Ready")
+	print(string.format("[PlayerDataService] Loaded %s: %d egg(s), %d monster(s)",
+		player.Name, #data.PlacedEggs, #data.Monsters))
+
+	-- Persist plot mutations shortly after placement/hatch instead of relying on the
+	-- next 60-second autosave or Studio shutdown. Hatch replaces an egg with a
+	-- monster in two child events, so a short debounce captures the settled state.
+	local plot = PlotService.GetPlot(player)
+	local folder = plot and plot:FindFirstChild("PlacedEggs")
+	if folder then
+		state.plotConnections = {}
+		local function changed()
+			if states[player] ~= state or not state.loaded or state.closing then return end
+			state.plotRevision = (state.plotRevision or 0) + 1
+			local revision = state.plotRevision
+			task.delay(1, function()
+				if states[player] ~= state or state.closing or state.plotRevision ~= revision then return end
+				while state.saving and states[player] == state and not state.closing do task.wait(0.1) end
+				if states[player] == state and not state.closing and state.plotRevision == revision then
+					savePlayer(player, state)
+				end
+			end)
+		end
+		table.insert(state.plotConnections, folder.ChildAdded:Connect(changed))
+		table.insert(state.plotConnections, folder.ChildRemoved:Connect(changed))
+		table.insert(state.plotConnections, plot:GetAttributeChangedSignal("SlotCapacity"):Connect(changed))
+	end
 end
 
-local function savePlayer(player, state, preparedSnapshot)
-	if not state or not state.loaded or state.saving then return end
+savePlayer = function(player, state, preparedSnapshot)
+	if not state or not state.loaded or state.saving
+		or (state.closing and preparedSnapshot == nil) then return end
 	state.saving = true
 	local data = preparedSnapshot or snapshot(player)
 	local ok, result = retry(function()
@@ -233,6 +310,9 @@ local function savePlayer(player, state, preparedSnapshot)
 	end)
 	state.saving = false
 	if ok then
+		player:SetAttribute("SavedMonsterCount", #data.Monsters)
+		print(string.format("[PlayerDataService] Saved %s: %d inventory egg(s), %d placed egg(s), %d monster(s)",
+			player.Name, #data.EggInventory, #data.PlacedEggs, #data.Monsters))
 		if player.Parent == Players then
 			IndexService.Import(player, result.IndexUnlocks)
 			player:SetAttribute("PlayerDataStatus", "Ready")
@@ -244,43 +324,64 @@ local function savePlayer(player, state, preparedSnapshot)
 	end
 end
 
-local function flush(player, preparedSnapshot)
+local function finalizePlayer(player)
 	local state = states[player]
 	if not state then return end
+	-- Capture exactly once, before PlotService's deferred cleanup can empty the plot.
+	-- PlayerRemoving and BindToClose may run together in Studio; both must reuse this
+	-- snapshot instead of allowing a later empty snapshot to overwrite it.
+	state.closing = true
+	state.finalSnapshot = state.finalSnapshot or (state.loaded and snapshot(player) or nil)
+	if state.finalized then return end
+	if state.finalizing then
+		local deadline = os.clock() + 25
+		while state.finalizing and os.clock() < deadline do task.wait(0.1) end
+		return
+	end
+	state.finalizing = true
 	local deadline = os.clock() + 24
 	while state.saving and os.clock() < deadline do task.wait(0.1) end
-	savePlayer(player, state, preparedSnapshot)
+	if not state.finalized then
+		savePlayer(player, state, state.finalSnapshot)
+		state.finalized = true
+	end
+	state.finalizing = false
 end
 
 function Service.Start()
 	if started then return end
 	started = true
+	print("[PlayerDataService] Starting persistence service...")
 	PlotService.Start()
 	TreadmillService.Start()
 	HatchService.Start()
 	IndexService.Start()
 	store = DataStoreService:GetDataStore(STORE_NAME)
 	legacyStore = DataStoreService:GetDataStore(LEGACY_INDEX_STORE)
+	print("[PlayerDataService] Persistence service started.")
 	Players.PlayerAdded:Connect(function(player) task.spawn(loadPlayer, player) end)
 	Players.PlayerRemoving:Connect(function(player)
-		-- Capture before other services' deferred cleanup, even if an autosave is in flight.
-		local preparedSnapshot = states[player] and states[player].loaded and snapshot(player) or nil
-		flush(player, preparedSnapshot)
+		local state = states[player]
+		finalizePlayer(player)
+		if state and state.plotConnections then
+			for _, connection in ipairs(state.plotConnections) do connection:Disconnect() end
+		end
 		states[player] = nil
 	end)
 	for _, player in ipairs(Players:GetPlayers()) do task.spawn(loadPlayer, player) end
 	task.spawn(function()
 		while true do
 			task.wait(AUTOSAVE_SECONDS)
-			for player, state in pairs(states) do task.spawn(savePlayer, player, state) end
+			for player, state in pairs(states) do
+				if not state.closing then task.spawn(savePlayer, player, state) end
+			end
 		end
 	end)
 	game:BindToClose(function()
 		local pending = 0
-		for player, state in pairs(states) do
-			local preparedSnapshot = state.loaded and snapshot(player) or nil
+		for player in pairs(states) do
 			pending += 1
-			task.spawn(function() flush(player, preparedSnapshot); pending -= 1 end)
+			task.spawn(function() finalizePlayer(player); pending -= 1 end)
 		end
 		local deadline = os.clock() + 25
 		while pending > 0 and os.clock() < deadline do task.wait(0.1) end

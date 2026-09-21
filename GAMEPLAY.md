@@ -2,7 +2,7 @@
 
 ## Važeći status — 2026-09-20
 
-Korisnik je izričito potvrdio da je testirao sve dosadašnje faze. **Faze 1–11 su završene i potvrđene**, uključujući ranije odložene provere i poslednje ispravke. Faze 13–15 su potvrđene. Faza 16 — IndexUi je implementirana i čeka Studio/UI potvrdu. Faza 17 — objedinjeni PlayerData je implementirana i čeka Studio/DataStore potvrdu. Pre faze 18 implementirano je slobodno kretanje monstera po plotu i čeka potvrdu prema docs/MONSTER_WANDER.md. Ovaj status zamenjuje sve ranije navode o nepotvrđenim fazama u istorijskim zapisima ispod.
+Korisnik je izričito potvrdio da je testirao sve dosadašnje faze. **Faze 1–11 su završene i potvrđene**, uključujući ranije odložene provere i poslednje ispravke. Faze 13–15 su potvrđene. Faza 16 — IndexUi čeka Studio/UI potvrdu. Faze 17 i 18 potvrđene su 2026-09-21 nakon ispravke PlayerData bootstrap-a i čuvanja monstera. Faza 19 — plot upgrades 6/8/12/16 implementirana je i čeka Studio potvrdu prema docs/FAZA_19.md. Ovaj status zamenjuje sve ranije navode o nepotvrđenim fazama u istorijskim zapisima ispod.
 
 
 ## Gameplay loop
